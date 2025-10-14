@@ -11,6 +11,8 @@ let mergePreviewData = null; // 合并预览数据
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
     initializeEventListeners();
+    // 主题初始化
+    initializeTheme();
 });
 
 function initializeEventListeners() {
@@ -673,6 +675,27 @@ function showLoading(show) {
 
 function showToolbar() {
     document.getElementById('toolbar').style.display = 'flex';
+}
+
+// 主题切换
+function initializeTheme() {
+    try {
+        const saved = localStorage.getItem('theme') || 'standard';
+        if (saved === 'glass') {
+            document.body.classList.add('theme-glass');
+            const btn = document.getElementById('themeToggleBtn');
+            if (btn) btn.textContent = '🎨 切换标准主题';
+        }
+    } catch (e) {}
+}
+
+function toggleTheme() {
+    const isGlass = document.body.classList.toggle('theme-glass');
+    try {
+        localStorage.setItem('theme', isGlass ? 'glass' : 'standard');
+    } catch (e) {}
+    const btn = document.getElementById('themeToggleBtn');
+    if (btn) btn.textContent = isGlass ? '🎨 切换标准主题' : '🎨 切换玻璃主题';
 }
 
 function showTablesSection() {

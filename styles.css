@@ -11,6 +11,17 @@ body {
     color: #333;
 }
 
+/* 流式排版：在不同屏幕下平滑缩放字号 */
+html { font-size: clamp(15px, 1.5vw, 16px); }
+header h1 { font-size: clamp(1.6rem, 3.8vw, 2.5rem); }
+header p { font-size: clamp(1rem, 2.4vw, 1.2rem); }
+.tables-header h3,
+.table-header h3,
+.analysis-section h3,
+.merge-header h3,
+.merge-preview-header h3 { font-size: clamp(1.05rem, 2.8vw, 1.3rem); }
+.table-card-title { font-size: clamp(1rem, 2.8vw, 1.1rem); }
+
 .container {
     max-width: 1400px;
     margin: 0 auto;
@@ -102,7 +113,7 @@ header p {
 
 /* 工具栏样式 */
 .toolbar {
-    background: #f8f9fa;
+    background: rgba(248, 249, 250, 0.85);
     padding: 15px 20px;
     border-bottom: 1px solid #e9ecef;
     display: flex;
@@ -110,6 +121,10 @@ header p {
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
+    position: sticky;
+    top: env(safe-area-inset-top, 0);
+    z-index: 20;
+    backdrop-filter: saturate(1.4) blur(6px);
 }
 
 .toolbar-left, .toolbar-right {
@@ -538,6 +553,12 @@ header p {
     -webkit-overflow-scrolling: touch; /* iOS 惯性滚动 */
 }
 
+/* 横向滚动条美化（webkit） */
+.table-container::-webkit-scrollbar { height: 10px; }
+.table-container::-webkit-scrollbar-track { background: #f1f3f5; border-radius: 8px; }
+.table-container::-webkit-scrollbar-thumb { background: #c7cfda; border-radius: 8px; }
+.table-container::-webkit-scrollbar-thumb:hover { background: #aeb9c9; }
+
 select,
 button,
 input[type="text"],
@@ -551,6 +572,17 @@ input,
 select,
 button {
     font-size: 16px;
+}
+
+/* 可访问性：更清晰的键盘焦点（不影响鼠标） */
+.tool-btn:focus-visible,
+.merge-btn:focus-visible,
+.filter-controls button:focus-visible,
+select:focus-visible,
+input:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.35);
+    border-color: #667eea;
 }
 
 /* 加载动画 */
@@ -661,6 +693,8 @@ button {
     .upload-area {
         padding: 28px 12px;
     }
+    /* 安全区适配（如 iPhone 刘海） */
+    .toolbar { padding-top: calc(15px + env(safe-area-inset-top, 0)); }
 }
 
 /* 选中行样式 */
@@ -782,4 +816,167 @@ button {
     .analysis-grid {
         grid-template-columns: 1fr;
     }
+}
+
+/* 无悬停设备：弱化 hover 强度，增加按下反馈 */
+@media (hover: none) {
+    .tool-btn:hover,
+    .merge-btn:hover {
+        transform: none;
+        box-shadow: none;
+    }
+    .tool-btn:active,
+    .merge-btn:active {
+        transform: translateY(1px);
+        filter: brightness(0.96);
+    }
+}
+
+/* 降低动画以照顾偏好减少动效的用户 */
+@media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+}
+
+/* ===================== 液态玻璃风格覆盖（Glassmorphism） ===================== */
+/* 全局流体光斑背景（不改HTML，使用伪元素） */
+body.theme-glass::before,
+body.theme-glass::after {
+    content: "";
+    position: fixed;
+    inset: -20vh -20vw;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(35vw 35vw at 20% 20%, rgba(255,255,255,0.25), transparent 60%),
+                radial-gradient(40vw 40vw at 80% 30%, rgba(255,255,255,0.18), transparent 65%),
+                radial-gradient(45vw 45vw at 50% 80%, rgba(255,255,255,0.15), transparent 70%);
+    filter: blur(40px) saturate(120%);
+    transform: translateZ(0);
+    animation: float-blobs 18s ease-in-out infinite alternate;
+}
+
+body.theme-glass::after {
+    animation-duration: 24s;
+    animation-delay: -6s;
+    opacity: 0.7;
+}
+
+@keyframes float-blobs {
+    0%   { transform: translate3d(0, 0, 0) scale(1); }
+    50%  { transform: translate3d(-2vw, 1vh, 0) scale(1.03); }
+    100% { transform: translate3d(2vw, -1vh, 0) scale(0.98); }
+}
+
+/* 主容器玻璃化 */
+body.theme-glass .main-content {
+    background: rgba(255,255,255,0.22);
+    border-radius: 16px;
+    box-shadow: 0 20px 50px rgba(30, 41, 59, 0.18);
+    border: 1px solid rgba(255,255,255,0.35);
+    backdrop-filter: blur(16px) saturate(140%);
+    -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+body.theme-glass .main-content::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background: linear-gradient(180deg, rgba(255,255,255,0.35), rgba(255,255,255,0.02));
+    mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+    -webkit-mask: linear-gradient(#000, #000) content-box, linear-gradient(#000, #000);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    padding: 1px;
+}
+
+/* 工具栏玻璃化 */
+body.theme-glass .toolbar {
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255,255,255,0.35);
+    backdrop-filter: blur(12px) saturate(140%);
+    -webkit-backdrop-filter: blur(12px) saturate(140%);
+}
+
+/* 卡片与区块玻璃化 */
+body.theme-glass .table-card,
+body.theme-glass .analysis-card,
+body.theme-glass .tables-section,
+body.theme-glass .merge-section,
+body.theme-glass .merge-preview-section,
+body.theme-glass .table-container {
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.32);
+    backdrop-filter: blur(10px) saturate(130%);
+    -webkit-backdrop-filter: blur(10px) saturate(130%);
+}
+
+body.theme-glass .table-card {
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(30, 41, 59, 0.12);
+}
+
+body.theme-glass .analysis-card { border-radius: 12px; }
+body.theme-glass .table-container { border-radius: 12px; box-shadow: 0 6px 18px rgba(30, 41, 59, 0.12); }
+body.theme-glass .tables-section { border-bottom: 1px solid rgba(255,255,255,0.28); }
+body.theme-glass .merge-section { border-top: 1px solid rgba(255,255,255,0.28); }
+body.theme-glass .merge-preview-section { border-bottom: 1px solid rgba(255,255,255,0.28); }
+
+/* 按钮与控件玻璃化 */
+body.theme-glass .tool-btn,
+body.theme-glass .upload-btn,
+body.theme-glass .filter-controls button {
+    background: rgba(255,255,255,0.24);
+    color: #1f2d3d;
+    border: 1px solid rgba(255,255,255,0.45);
+    border-radius: 10px;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+}
+
+body.theme-glass .tool-btn:hover,
+body.theme-glass .filter-controls button:hover,
+body.theme-glass .upload-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(102, 126, 234, 0.28);
+    background: rgba(102, 126, 234, 0.22);
+    color: #fff;
+    border-color: rgba(102, 126, 234, 0.6);
+}
+
+/* 数据表玻璃化 */
+body.theme-glass .data-table { background: rgba(255,255,255,0.3); backdrop-filter: blur(6px); }
+body.theme-glass .data-table th { background: linear-gradient(135deg, rgba(102,126,234,0.9) 0%, rgba(118,75,162,0.9) 100%); color: #fff; }
+body.theme-glass .data-table td { border-bottom: 1px solid rgba(255,255,255,0.45); }
+body.theme-glass .data-table input {
+    border: 1px solid rgba(255,255,255,0.4);
+    background: rgba(255,255,255,0.5);
+    padding: 6px;
+    border-radius: 8px;
+    font-size: 0.95rem;
+}
+
+/* 选择器与输入玻璃化 */
+body.theme-glass .table-selector select,
+body.theme-glass .key-selector select,
+body.theme-glass .filter-controls select,
+body.theme-glass .filter-controls input {
+    padding: 10px;
+    border: 1px solid rgba(255,255,255,0.45);
+    border-radius: 10px;
+    font-size: 0.95rem;
+    background: rgba(255,255,255,0.5);
+    backdrop-filter: blur(8px);
+}
+
+/* 小屏性能优化：降低模糊强度，确保可读性 */
+@media (max-width: 480px) {
+    body.theme-glass .main-content { backdrop-filter: blur(12px) saturate(130%); }
+    body.theme-glass .toolbar,
+    body.theme-glass .table-card,
+    body.theme-glass .analysis-card,
+    body.theme-glass .tables-section,
+    body.theme-glass .merge-section,
+    body.theme-glass .merge-preview-section,
+    body.theme-glass .table-container { backdrop-filter: blur(8px) saturate(120%); }
 }
