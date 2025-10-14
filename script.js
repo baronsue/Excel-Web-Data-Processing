@@ -700,11 +700,17 @@ function previewMerge() {
     const rightTableSelect = document.getElementById('rightTableSelect');
     const leftKeyColumn = document.getElementById('leftKeyColumn');
     const rightKeyColumn = document.getElementById('rightKeyColumn');
-    const joinType = document.querySelector('input[name="joinType"]:checked').value;
+    const joinTypeRadio = document.querySelector('input[name="joinType"]:checked');
     
+    // 验证输入
     if (!leftTableSelect.value || !rightTableSelect.value || 
         !leftKeyColumn.value || !rightKeyColumn.value) {
         alert('请选择要合并的表和关联列');
+        return;
+    }
+    
+    if (!joinTypeRadio) {
+        alert('请选择合并类型');
         return;
     }
     
@@ -716,17 +722,58 @@ function previewMerge() {
     const [leftTableIndex, leftSheetIndex] = leftTableSelect.value.split('-').map(Number);
     const [rightTableIndex, rightSheetIndex] = rightTableSelect.value.split('-').map(Number);
     
+    // 验证表索引
+    if (leftTableIndex < 0 || leftTableIndex >= tables.length ||
+        rightTableIndex < 0 || rightTableIndex >= tables.length) {
+        alert('选择的表不存在');
+        return;
+    }
+    
+    if (leftSheetIndex < 0 || leftSheetIndex >= tables[leftTableIndex].sheets.length ||
+        rightSheetIndex < 0 || rightSheetIndex >= tables[rightTableIndex].sheets.length) {
+        alert('选择的工作表不存在');
+        return;
+    }
+    
     const leftTable = tables[leftTableIndex].sheets[leftSheetIndex];
     const rightTable = tables[rightTableIndex].sheets[rightSheetIndex];
     
+    // 验证表数据
+    if (!leftTable.data || leftTable.data.length === 0) {
+        alert('左表没有数据');
+        return;
+    }
+    
+    if (!rightTable.data || rightTable.data.length === 0) {
+        alert('右表没有数据');
+        return;
+    }
+    
     const leftKeyCol = parseInt(leftKeyColumn.value);
     const rightKeyCol = parseInt(rightKeyColumn.value);
+    const joinType = joinTypeRadio.value;
     
-    // 执行合并
-    const mergedData = performJoin(leftTable.data, rightTable.data, leftKeyCol, rightKeyCol, joinType);
+    // 验证关联列索引
+    if (leftKeyCol < 0 || leftKeyCol >= leftTable.data[0].length) {
+        alert('左表关联列索引无效');
+        return;
+    }
     
-    // 显示预览
-    displayMergePreview(mergedData, leftTable, rightTable, joinType);
+    if (rightKeyCol < 0 || rightKeyCol >= rightTable.data[0].length) {
+        alert('右表关联列索引无效');
+        return;
+    }
+    
+    try {
+        // 执行合并
+        const mergedData = performJoin(leftTable.data, rightTable.data, leftKeyCol, rightKeyCol, joinType);
+        
+        // 显示预览
+        displayMergePreview(mergedData, leftTable, rightTable, joinType);
+    } catch (error) {
+        console.error('合并过程中发生错误:', error);
+        alert('合并过程中发生错误: ' + error.message);
+    }
 }
 
 function performJoin(leftData, rightData, leftKeyCol, rightKeyCol, joinType) {
@@ -739,8 +786,22 @@ function performJoin(leftData, rightData, leftKeyCol, rightKeyCol, joinType) {
     const leftRows = leftData.slice(1);
     const rightRows = rightData.slice(1);
     
-    // 创建右表的索引映射
+    // 创建左表和右表的索引映射
+    const leftIndex = new Map();
     const rightIndex = new Map();
+    
+    // 构建左表索引
+    leftRows.forEach((row, index) => {
+        const key = row[leftKeyCol];
+        if (key !== undefined && key !== null && key !== '') {
+            if (!leftIndex.has(key)) {
+                leftIndex.set(key, []);
+            }
+            leftIndex.get(key).push(index);
+        }
+    });
+    
+    // 构建右表索引
     rightRows.forEach((row, index) => {
         const key = row[rightKeyCol];
         if (key !== undefined && key !== null && key !== '') {
@@ -760,7 +821,7 @@ function performJoin(leftData, rightData, leftKeyCol, rightKeyCol, joinType) {
     });
     
     const mergedRows = [];
-    const matchedKeys = new Set();
+    const processedKeys = new Set();
     
     // LEFT JOIN 或 INNER JOIN
     if (joinType === 'left' || joinType === 'inner') {
@@ -769,13 +830,13 @@ function performJoin(leftData, rightData, leftKeyCol, rightKeyCol, joinType) {
             const rightMatches = rightIndex.get(key) || [];
             
             if (rightMatches.length > 0) {
-                matchedKeys.add(key);
-                rightMatches.forEach(rightIndex => {
-                    const rightRow = rightRows[rightIndex];
+                processedKeys.add(key);
+                rightMatches.forEach(rightRowIndex => {
+                    const rightRow = rightRows[rightRowIndex];
                     const mergedRow = [...leftRow];
                     rightHeaders.forEach((header, colIndex) => {
                         if (colIndex !== rightKeyCol) {
-                            mergedRow.push(rightRow[colIndex]);
+                            mergedRow.push(rightRow[colIndex] || '');
                         }
                     });
                     mergedRows.push(mergedRow);
@@ -797,15 +858,16 @@ function performJoin(leftData, rightData, leftKeyCol, rightKeyCol, joinType) {
     if (joinType === 'right') {
         rightRows.forEach(rightRow => {
             const key = rightRow[rightKeyCol];
-            const leftMatches = leftRows.filter(leftRow => leftRow[leftKeyCol] === key);
+            const leftMatches = leftIndex.get(key) || [];
             
             if (leftMatches.length > 0) {
-                matchedKeys.add(key);
-                leftMatches.forEach(leftRow => {
+                processedKeys.add(key);
+                leftMatches.forEach(leftRowIndex => {
+                    const leftRow = leftRows[leftRowIndex];
                     const mergedRow = [...leftRow];
                     rightHeaders.forEach((header, colIndex) => {
                         if (colIndex !== rightKeyCol) {
-                            mergedRow.push(rightRow[colIndex]);
+                            mergedRow.push(rightRow[colIndex] || '');
                         }
                     });
                     mergedRows.push(mergedRow);
@@ -816,7 +878,7 @@ function performJoin(leftData, rightData, leftKeyCol, rightKeyCol, joinType) {
                 mergedRow[leftKeyCol] = key;
                 rightHeaders.forEach((header, colIndex) => {
                     if (colIndex !== rightKeyCol) {
-                        mergedRow.push(rightRow[colIndex]);
+                        mergedRow.push(rightRow[colIndex] || '');
                     }
                 });
                 mergedRows.push(mergedRow);
@@ -826,19 +888,19 @@ function performJoin(leftData, rightData, leftKeyCol, rightKeyCol, joinType) {
     
     // FULL OUTER JOIN
     if (joinType === 'full') {
-        // 先处理匹配的行
+        // 处理所有匹配的行
         leftRows.forEach(leftRow => {
             const key = leftRow[leftKeyCol];
             const rightMatches = rightIndex.get(key) || [];
             
             if (rightMatches.length > 0) {
-                matchedKeys.add(key);
-                rightMatches.forEach(rightIndex => {
-                    const rightRow = rightRows[rightIndex];
+                processedKeys.add(key);
+                rightMatches.forEach(rightRowIndex => {
+                    const rightRow = rightRows[rightRowIndex];
                     const mergedRow = [...leftRow];
                     rightHeaders.forEach((header, colIndex) => {
                         if (colIndex !== rightKeyCol) {
-                            mergedRow.push(rightRow[colIndex]);
+                            mergedRow.push(rightRow[colIndex] || '');
                         }
                     });
                     mergedRows.push(mergedRow);
@@ -855,15 +917,15 @@ function performJoin(leftData, rightData, leftKeyCol, rightKeyCol, joinType) {
             }
         });
         
-        // 再处理右表有但左表没有的行
+        // 处理右表有但左表没有的行
         rightRows.forEach(rightRow => {
             const key = rightRow[rightKeyCol];
-            if (!matchedKeys.has(key)) {
+            if (!processedKeys.has(key)) {
                 const mergedRow = new Array(leftHeaders.length).fill('');
                 mergedRow[leftKeyCol] = key;
                 rightHeaders.forEach((header, colIndex) => {
                     if (colIndex !== rightKeyCol) {
-                        mergedRow.push(rightRow[colIndex]);
+                        mergedRow.push(rightRow[colIndex] || '');
                     }
                 });
                 mergedRows.push(mergedRow);
@@ -922,9 +984,111 @@ function displayMergePreview(mergedData, leftTable, rightTable, joinType) {
     // 计算匹配行数
     const leftKeyCol = parseInt(document.getElementById('leftKeyColumn').value);
     const rightKeyCol = parseInt(document.getElementById('rightKeyColumn').value);
-    const matchedRows = mergedData.slice(1).filter(row => 
-        row[leftKeyCol] !== '' && row[leftKeyCol] !== null && row[leftKeyCol] !== undefined
-    ).length;
+    
+    // 根据join类型计算匹配行数
+    let matchedRows = 0;
+    const joinType = document.querySelector('input[name="joinType"]:checked').value;
+    
+    if (joinType === 'inner') {
+        // INNER JOIN: 只计算完全匹配的行
+        matchedRows = mergedData.slice(1).filter(row => 
+            row[leftKeyCol] !== '' && row[leftKeyCol] !== null && row[leftKeyCol] !== undefined &&
+            row[leftKeyCol + (rightKeyCol < leftKeyCol ? 0 : rightKeyCol - 1)] !== '' &&
+            row[leftKeyCol + (rightKeyCol < leftKeyCol ? 0 : rightKeyCol - 1)] !== null &&
+            row[leftKeyCol + (rightKeyCol < leftKeyCol ? 0 : rightKeyCol - 1)] !== undefined
+        ).length;
+    } else if (joinType === 'left') {
+        // LEFT JOIN: 计算左表有匹配的行数
+        const leftTableSelect = document.getElementById('leftTableSelect');
+        const [leftTableIndex, leftSheetIndex] = leftTableSelect.value.split('-').map(Number);
+        const leftTable = tables[leftTableIndex].sheets[leftSheetIndex];
+        const leftRows = leftTable.data.slice(1);
+        
+        const rightTableSelect = document.getElementById('rightTableSelect');
+        const [rightTableIndex, rightSheetIndex] = rightTableSelect.value.split('-').map(Number);
+        const rightTable = tables[rightTableIndex].sheets[rightSheetIndex];
+        const rightRows = rightTable.data.slice(1);
+        
+        // 创建右表索引
+        const rightIndex = new Map();
+        rightRows.forEach(row => {
+            const key = row[rightKeyCol];
+            if (key !== undefined && key !== null && key !== '') {
+                rightIndex.set(key, true);
+            }
+        });
+        
+        // 计算左表中有匹配的行数
+        matchedRows = leftRows.filter(row => {
+            const key = row[leftKeyCol];
+            return key !== undefined && key !== null && key !== '' && rightIndex.has(key);
+        }).length;
+    } else if (joinType === 'right') {
+        // RIGHT JOIN: 计算右表有匹配的行数
+        const leftTableSelect = document.getElementById('leftTableSelect');
+        const [leftTableIndex, leftSheetIndex] = leftTableSelect.value.split('-').map(Number);
+        const leftTable = tables[leftTableIndex].sheets[leftSheetIndex];
+        const leftRows = leftTable.data.slice(1);
+        
+        const rightTableSelect = document.getElementById('rightTableSelect');
+        const [rightTableIndex, rightSheetIndex] = rightTableSelect.value.split('-').map(Number);
+        const rightTable = tables[rightTableIndex].sheets[rightSheetIndex];
+        const rightRows = rightTable.data.slice(1);
+        
+        // 创建左表索引
+        const leftIndex = new Map();
+        leftRows.forEach(row => {
+            const key = row[leftKeyCol];
+            if (key !== undefined && key !== null && key !== '') {
+                leftIndex.set(key, true);
+            }
+        });
+        
+        // 计算右表中有匹配的行数
+        matchedRows = rightRows.filter(row => {
+            const key = row[rightKeyCol];
+            return key !== undefined && key !== null && key !== '' && leftIndex.has(key);
+        }).length;
+    } else if (joinType === 'full') {
+        // FULL OUTER JOIN: 计算所有匹配的行数
+        const leftTableSelect = document.getElementById('leftTableSelect');
+        const [leftTableIndex, leftSheetIndex] = leftTableSelect.value.split('-').map(Number);
+        const leftTable = tables[leftTableIndex].sheets[leftSheetIndex];
+        const leftRows = leftTable.data.slice(1);
+        
+        const rightTableSelect = document.getElementById('rightTableSelect');
+        const [rightTableIndex, rightSheetIndex] = rightTableSelect.value.split('-').map(Number);
+        const rightTable = tables[rightTableIndex].sheets[rightSheetIndex];
+        const rightRows = rightTable.data.slice(1);
+        
+        // 创建索引
+        const leftIndex = new Map();
+        const rightIndex = new Map();
+        
+        leftRows.forEach(row => {
+            const key = row[leftKeyCol];
+            if (key !== undefined && key !== null && key !== '') {
+                leftIndex.set(key, true);
+            }
+        });
+        
+        rightRows.forEach(row => {
+            const key = row[rightKeyCol];
+            if (key !== undefined && key !== null && key !== '') {
+                rightIndex.set(key, true);
+            }
+        });
+        
+        // 计算匹配的key数量
+        const matchedKeys = new Set();
+        leftIndex.forEach((_, key) => {
+            if (rightIndex.has(key)) {
+                matchedKeys.add(key);
+            }
+        });
+        
+        matchedRows = matchedKeys.size;
+    }
     
     document.getElementById('matchedRows').textContent = `匹配: ${matchedRows} 行`;
     
@@ -939,42 +1103,65 @@ function executeMerge() {
     }
     
     if (confirm('确定要执行合并吗？这将创建一个新的工作表。')) {
-        // 创建新的合并表
-        const leftTableSelect = document.getElementById('leftTableSelect');
-        const rightTableSelect = document.getElementById('rightTableSelect');
-        const joinType = document.querySelector('input[name="joinType"]:checked').value;
-        
-        const [leftTableIndex, leftSheetIndex] = leftTableSelect.value.split('-').map(Number);
-        const [rightTableIndex, rightSheetIndex] = rightTableSelect.value.split('-').map(Number);
-        
-        const leftTable = tables[leftTableIndex];
-        const rightTable = tables[rightTableIndex];
-        
-        const mergedTableName = `${leftTable.name}_${rightTable.name}_${joinType.toUpperCase()}_JOIN`;
-        
-        // 添加到表列表
-        const newTable = {
-            name: mergedTableName,
-            fileName: `${mergedTableName}.xlsx`,
-            sheets: [{
-                name: 'Merged_Data',
-                data: mergePreviewData,
-                originalData: JSON.parse(JSON.stringify(mergePreviewData))
-            }]
-        };
-        
-        tables.push(newTable);
-        
-        // 切换到新创建的表
-        switchToTable(tables.length - 1, 0);
-        
-        // 隐藏预览区域
-        document.getElementById('mergePreviewSection').style.display = 'none';
-        
-        // 更新合并选择器
-        updateMergeSelectors();
-        
-        alert('合并完成！新表已创建并切换到合并结果。');
+        try {
+            // 创建新的合并表
+            const leftTableSelect = document.getElementById('leftTableSelect');
+            const rightTableSelect = document.getElementById('rightTableSelect');
+            const joinTypeRadio = document.querySelector('input[name="joinType"]:checked');
+            
+            if (!leftTableSelect.value || !rightTableSelect.value || !joinTypeRadio) {
+                alert('合并参数不完整，请重新预览');
+                return;
+            }
+            
+            const [leftTableIndex, leftSheetIndex] = leftTableSelect.value.split('-').map(Number);
+            const [rightTableIndex, rightSheetIndex] = rightTableSelect.value.split('-').map(Number);
+            
+            // 验证表索引
+            if (leftTableIndex < 0 || leftTableIndex >= tables.length ||
+                rightTableIndex < 0 || rightTableIndex >= tables.length) {
+                alert('选择的表不存在');
+                return;
+            }
+            
+            const leftTable = tables[leftTableIndex];
+            const rightTable = tables[rightTableIndex];
+            const joinType = joinTypeRadio.value;
+            
+            // 生成唯一的表名
+            const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+            const mergedTableName = `${leftTable.name}_${rightTable.name}_${joinType.toUpperCase()}_${timestamp}`;
+            
+            // 添加到表列表
+            const newTable = {
+                name: mergedTableName,
+                fileName: `${mergedTableName}.xlsx`,
+                sheets: [{
+                    name: 'Merged_Data',
+                    data: mergePreviewData,
+                    originalData: JSON.parse(JSON.stringify(mergePreviewData))
+                }]
+            };
+            
+            tables.push(newTable);
+            
+            // 切换到新创建的表
+            switchToTable(tables.length - 1, 0);
+            
+            // 隐藏预览区域
+            document.getElementById('mergePreviewSection').style.display = 'none';
+            
+            // 清空预览数据
+            mergePreviewData = null;
+            
+            // 更新合并选择器
+            updateMergeSelectors();
+            
+            alert('合并完成！新表已创建并切换到合并结果。');
+        } catch (error) {
+            console.error('执行合并时发生错误:', error);
+            alert('执行合并时发生错误: ' + error.message);
+        }
     }
 }
 
