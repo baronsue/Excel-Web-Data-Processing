@@ -34,6 +34,19 @@ header {
     color: white;
 }
 
+/* 页眉动作按钮（主题切换置于右上角） */
+.header-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+@media (max-width: 480px) {
+    .header-actions { justify-content: center; }
+}
+
 header h1 {
     font-size: 2.5rem;
     margin-bottom: 10px;

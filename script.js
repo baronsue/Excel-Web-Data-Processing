@@ -59,11 +59,34 @@ function handleFileDrop(event) {
 function processFile(file) {
     showLoading(true);
     
+    const ext = (file.name.split('.').pop() || '').toLowerCase();
     const reader = new FileReader();
+    
+    reader.onerror = function() {
+        showLoading(false);
+        alert('读取文件失败，请重试或更换文件。');
+    };
+    
     reader.onload = function(e) {
         try {
-            const data = new Uint8Array(e.target.result);
-            workbook = XLSX.read(data, { type: 'array' });
+            // 优先按扩展名区分解析策略（CSV 用字符串，其他用二进制）
+            if (ext === 'csv') {
+                const text = e.target.result;
+                workbook = XLSX.read(text, { type: 'string' });
+            } else {
+                const data = new Uint8Array(e.target.result);
+                try {
+                    workbook = XLSX.read(data, { type: 'array' });
+                } catch (errArray) {
+                    // 回退：尝试按binary string解析
+                    const binary = Array.prototype.map.call(data, ch => String.fromCharCode(ch)).join('');
+                    workbook = XLSX.read(binary, { type: 'binary' });
+                }
+            }
+            
+            if (!workbook || !workbook.SheetNames || workbook.SheetNames.length === 0) {
+                throw new Error('未检测到有效的工作表');
+            }
             
             // 处理所有工作表
             const tableData = {
@@ -72,9 +95,15 @@ function processFile(file) {
                 sheets: []
             };
             
-            workbook.SheetNames.forEach((sheetName, index) => {
+            workbook.SheetNames.forEach((sheetName) => {
                 const sheet = workbook.Sheets[sheetName];
-                const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                if (!sheet) return;
+                // 使用更稳健的参数：保留空单元格、原始值
+                const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+                
+                // 跳过完全空表
+                const hasContent = Array.isArray(sheetData) && sheetData.some(row => Array.isArray(row) && row.some(cell => cell !== '' && cell !== null && cell !== undefined));
+                if (!hasContent) return;
                 
                 tableData.sheets.push({
                     name: sheetName,
@@ -83,15 +112,17 @@ function processFile(file) {
                 });
             });
             
+            if (tableData.sheets.length === 0) {
+                throw new Error('文件中所有工作表均为空或无法解析');
+            }
+            
             // 添加到表列表
             tables.push(tableData);
             
             // 设置当前表为第一个工作表
-            if (tableData.sheets.length > 0) {
-                currentTableIndex = tables.length - 1;
-                currentData = tableData.sheets[0].data;
-                originalData = tableData.sheets[0].originalData;
-            }
+            currentTableIndex = tables.length - 1;
+            currentData = tableData.sheets[0].data;
+            originalData = tableData.sheets[0].originalData;
             
             displayTablesList();
             displayData();
@@ -102,13 +133,19 @@ function processFile(file) {
             updateMergeSelectors();
             
         } catch (error) {
+            console.error('文件处理失败:', error);
             alert('文件处理失败: ' + error.message);
         } finally {
             showLoading(false);
         }
     };
     
-    reader.readAsArrayBuffer(file);
+    // 启动读取
+    if (ext === 'csv') {
+        reader.readAsText(file);
+    } else {
+        reader.readAsArrayBuffer(file);
+    }
 }
 
 function displayData() {
@@ -683,8 +720,8 @@ function initializeTheme() {
         const saved = localStorage.getItem('theme') || 'standard';
         if (saved === 'glass') {
             document.body.classList.add('theme-glass');
-            const btn = document.getElementById('themeToggleBtn');
-            if (btn) btn.textContent = '🎨 切换标准主题';
+            const btns = [document.getElementById('themeToggleBtn'), document.getElementById('themeToggleBtnTop')];
+            btns.forEach(btn => { if (btn) btn.textContent = '🎨 切换标准主题'; });
         }
     } catch (e) {}
 }
@@ -694,8 +731,8 @@ function toggleTheme() {
     try {
         localStorage.setItem('theme', isGlass ? 'glass' : 'standard');
     } catch (e) {}
-    const btn = document.getElementById('themeToggleBtn');
-    if (btn) btn.textContent = isGlass ? '🎨 切换标准主题' : '🎨 切换玻璃主题';
+    const btns = [document.getElementById('themeToggleBtn'), document.getElementById('themeToggleBtnTop')];
+    btns.forEach(btn => { if (btn) btn.textContent = isGlass ? '🎨 切换标准主题' : '🎨 切换玻璃主题'; });
 }
 
 function showTablesSection() {
