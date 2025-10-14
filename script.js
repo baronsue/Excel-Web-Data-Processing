@@ -18,6 +18,8 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeEventListeners() {
     const fileInput = document.getElementById('fileInput');
     const uploadArea = document.getElementById('uploadArea');
+    const themeBtn = document.getElementById('themeToggleBtn');
+    const themeBtnTop = document.getElementById('themeToggleBtnTop');
     
     // 文件输入事件
     if (fileInput) {
@@ -43,6 +45,10 @@ function initializeEventListeners() {
             });
         }
     }
+
+    // 绑定主题切换按钮（遵循CSP，避免内联脚本）
+    if (themeBtn) themeBtn.addEventListener('click', toggleTheme);
+    if (themeBtnTop) themeBtnTop.addEventListener('click', toggleTheme);
 }
 
 // 文件处理函数
