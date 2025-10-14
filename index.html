@@ -1,202 +1,97 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- 安全：限制外联与数据外发，确保只从自身与CDN加载脚本，不向外发送数据 -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; connect-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'none'; base-uri 'self'; form-action 'self'">
-    <meta name="referrer" content="no-referrer">
-    <title>Excel处理工具</title>
-    <link rel="stylesheet" href="styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" referrerpolicy="no-referrer" crossorigin="anonymous"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js" referrerpolicy="no-referrer" crossorigin="anonymous"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Excel 表格合并（类似数据库 JOIN）</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="header-actions">
-                <button class="tool-btn" id="themeToggleBtnTop" onclick="toggleTheme()">🎨 切换玻璃主题</button>
-            </div>
-            <h1>📊 Excel处理工具</h1>
-            <p>上传、编辑、分析和导出Excel文件</p>
-        </header>
-
-        <div class="main-content">
-            <!-- 文件上传区域 -->
-            <div class="upload-section">
-                <div class="upload-area" id="uploadArea">
-                    <div class="upload-icon">📁</div>
-                    <h3>拖拽Excel文件到此处或点击上传</h3>
-                    <p>支持 .xlsx, .xls, .csv 格式</p>
-                    <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="file-input-hidden">
-                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">选择文件</button>
-                </div>
-            </div>
-
-            <!-- 多表管理区域 -->
-            <div class="tables-section" id="tablesSection" style="display: none;">
-                <div class="tables-header">
-                    <h3>📋 数据表管理</h3>
-                    <button class="tool-btn" onclick="addNewTable()">➕ 添加新表</button>
-                </div>
-                <div class="tables-list" id="tablesList">
-                    <!-- 动态生成的表列表 -->
-                </div>
-            </div>
-
-            <!-- 表合并区域 -->
-            <div class="merge-section" id="mergeSection" style="display: none;">
-                <div class="merge-header">
-                    <h3>🔗 表合并工具</h3>
-                </div>
-                <div class="merge-controls">
-                    <div class="merge-table-selector">
-                        <div class="table-selector">
-                            <label>左表 (主表):</label>
-                            <select id="leftTableSelect">
-                                <option value="">选择左表</option>
-                            </select>
-                        </div>
-                        <div class="table-selector">
-                            <label>右表 (关联表):</label>
-                            <select id="rightTableSelect">
-                                <option value="">选择右表</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="join-type-selector">
-                        <label>合并类型:</label>
-                        <div class="join-options">
-                            <label class="join-option">
-                                <input type="radio" name="joinType" value="left" checked>
-                                <span>LEFT JOIN (保留左表所有数据)</span>
-                            </label>
-                            <label class="join-option">
-                                <input type="radio" name="joinType" value="right">
-                                <span>RIGHT JOIN (保留右表所有数据)</span>
-                            </label>
-                            <label class="join-option">
-                                <input type="radio" name="joinType" value="inner">
-                                <span>INNER JOIN (只保留匹配数据)</span>
-                            </label>
-                            <label class="join-option">
-                                <input type="radio" name="joinType" value="full">
-                                <span>FULL OUTER JOIN (保留所有数据)</span>
-                            </label>
-                        </div>
-                    </div>
-                    <div class="key-column-selector">
-                        <div class="key-selector">
-                            <label>左表关联列:</label>
-                            <select id="leftKeyColumn">
-                                <option value="">选择关联列</option>
-                            </select>
-                        </div>
-                        <div class="key-selector">
-                            <label>右表关联列:</label>
-                            <select id="rightKeyColumn">
-                                <option value="">选择关联列</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div class="merge-actions">
-                        <button class="tool-btn merge-btn" onclick="previewMerge()">👁️ 预览合并</button>
-                        <button class="tool-btn merge-btn" onclick="executeMerge()">✅ 执行合并</button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 工具栏 -->
-            <div class="toolbar" id="toolbar" style="display: none;">
-                <div class="toolbar-left">
-                    <button class="tool-btn" onclick="addColumn()">➕ 添加列</button>
-                    <button class="tool-btn" onclick="addRow()">➕ 添加行</button>
-                    <button class="tool-btn" onclick="deleteSelected()">🗑️ 删除选中</button>
-                    <button class="tool-btn" onclick="sortData()">📊 排序</button>
-                </div>
-                <div class="toolbar-right">
-                    <button class="tool-btn" id="themeToggleBtn" onclick="toggleTheme()">🎨 切换玻璃主题</button>
-                    <button class="tool-btn" onclick="showMergeSection()">🔗 表合并</button>
-                    <button class="tool-btn export-btn" onclick="exportExcel()">💾 导出Excel</button>
-                    <button class="tool-btn" onclick="generateChart()">📈 生成图表</button>
-                </div>
-            </div>
-
-            <!-- 合并预览区域 -->
-            <div class="merge-preview-section" id="mergePreviewSection" style="display: none;">
-                <div class="merge-preview-header">
-                    <h3>🔍 合并预览</h3>
-                    <div class="preview-info">
-                        <span id="previewRowCount">0 行</span>
-                        <span id="previewColCount">0 列</span>
-                        <span id="matchedRows">匹配: 0 行</span>
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table id="mergePreviewTable" class="data-table">
-                        <thead id="mergePreviewHead"></thead>
-                        <tbody id="mergePreviewBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 数据表格区域 -->
-            <div class="table-section" id="tableSection" style="display: none;">
-                <div class="table-header">
-                    <h3>数据预览</h3>
-                    <div class="table-info">
-                        <span id="rowCount">0 行</span>
-                        <span id="colCount">0 列</span>
-                    </div>
-                </div>
-                <div class="table-container">
-                    <table id="dataTable" class="data-table">
-                        <thead id="tableHead"></thead>
-                        <tbody id="tableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 分析工具区域 -->
-            <div class="analysis-section" id="analysisSection" style="display: none;">
-                <h3>数据分析</h3>
-                <div class="analysis-grid">
-                    <div class="analysis-card">
-                        <h4>📊 统计信息</h4>
-                        <div id="statistics"></div>
-                    </div>
-                    <div class="analysis-card">
-                        <h4>📈 图表</h4>
-                        <canvas id="chartCanvas" width="400" height="200"></canvas>
-                    </div>
-                    <div class="analysis-card">
-                        <h4>🔍 数据筛选</h4>
-                        <div class="filter-controls">
-                            <select id="filterColumn">
-                                <option value="">选择列</option>
-                            </select>
-                            <select id="filterOperator">
-                                <option value="contains">包含</option>
-                                <option value="equals">等于</option>
-                                <option value="greater">大于</option>
-                                <option value="less">小于</option>
-                            </select>
-                            <input type="text" id="filterValue" placeholder="筛选值">
-                            <button onclick="applyFilter()">应用筛选</button>
-                            <button onclick="clearFilter()">清除筛选</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 加载提示 -->
-        <div class="loading" id="loading" style="display: none;">
-            <div class="spinner"></div>
-            <p>正在处理文件...</p>
-        </div>
+  <header class="app-header">
+    <h1>Excel/CSV 表格合并</h1>
+    <div class="header-actions">
+      <button id="resetApp" class="btn ghost" title="重置页面">重置</button>
+      <a class="btn link" href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
     </div>
+  </header>
 
-    <script src="script.js"></script>
+  <main class="container">
+    <section class="card">
+      <h2>1. 上传数据文件</h2>
+      <div class="upload-grid">
+        <div>
+          <label class="label">左表文件 (A)</label>
+          <input id="fileA" type="file" accept=".xlsx,.xls,.csv" />
+          <div class="row small">
+            <label>工作表：</label>
+            <select id="sheetA"></select>
+          </div>
+        </div>
+        <div>
+          <label class="label">右表文件 (B)</label>
+          <input id="fileB" type="file" accept=".xlsx,.xls,.csv" />
+          <div class="row small">
+            <label>工作表：</label>
+            <select id="sheetB"></select>
+          </div>
+        </div>
+      </div>
+      <div class="row small">
+        <label><input id="hasHeader" type="checkbox" checked /> 首行作为表头</label>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>2. 选择合并键与类型</h2>
+      <div class="grid-2">
+        <div>
+          <label class="label">左表键列</label>
+          <div id="keysA" class="chips"></div>
+        </div>
+        <div>
+          <label class="label">右表键列</label>
+          <div id="keysB" class="chips"></div>
+        </div>
+      </div>
+      <div class="row">
+        <label class="label">Join 类型</label>
+        <select id="joinType">
+          <option value="inner">INNER</option>
+          <option value="left">LEFT</option>
+          <option value="right">RIGHT</option>
+          <option value="full">FULL</option>
+        </select>
+        <label class="label">空白/缺失填充值</label>
+        <input id="nullFill" type="text" placeholder="例如：NULL" value="" />
+      </div>
+      <div class="row">
+        <button id="runJoin" class="btn primary">执行合并</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>3. 预览与导出</h2>
+      <div class="row small stats" id="stats"></div>
+      <div class="table-wrap">
+        <table id="preview"></table>
+      </div>
+      <div class="row">
+        <button id="exportCSV" class="btn">导出 CSV</button>
+        <button id="exportXLSX" class="btn">导出 XLSX</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>本地浏览器完成解析与合并，不上传任何数据。</span>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
+
