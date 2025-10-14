@@ -20,13 +20,29 @@ function initializeEventListeners() {
     const uploadArea = document.getElementById('uploadArea');
     
     // 文件输入事件
-    fileInput.addEventListener('change', handleFileSelect);
+    if (fileInput) {
+        fileInput.addEventListener('change', handleFileSelect);
+    }
     
     // 拖拽事件
-    uploadArea.addEventListener('dragover', handleDragOver);
-    uploadArea.addEventListener('dragleave', handleDragLeave);
-    uploadArea.addEventListener('drop', handleFileDrop);
-    uploadArea.addEventListener('click', () => fileInput.click());
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleFileDrop);
+        // 仅当点击的是上传区域本身（非内部按钮等子元素）时，才触发文件选择
+        uploadArea.addEventListener('click', (e) => {
+            if (e.target === uploadArea && fileInput) {
+                fileInput.click();
+            }
+        });
+        // 防止按钮点击冒泡到上传区域导致二次触发
+        const uploadBtn = uploadArea.querySelector('.upload-btn');
+        if (uploadBtn) {
+            uploadBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+            });
+        }
+    }
 }
 
 // 文件处理函数
@@ -1091,11 +1107,11 @@ function displayMergePreview(mergedData, leftTable, rightTable, joinType) {
     const leftKeyCol = parseInt(document.getElementById('leftKeyColumn').value);
     const rightKeyCol = parseInt(document.getElementById('rightKeyColumn').value);
     
-    // 根据join类型计算匹配行数
+    // 根据 join 类型计算匹配行数（优先使用入参，其次读取当前单选）
     let matchedRows = 0;
-    const joinType = document.querySelector('input[name="joinType"]:checked').value;
+    const effectiveJoinType = joinType || (document.querySelector('input[name="joinType"]:checked')?.value || 'left');
     
-    if (joinType === 'inner') {
+    if (effectiveJoinType === 'inner') {
         // INNER JOIN: 只计算完全匹配的行
         matchedRows = mergedData.slice(1).filter(row => 
             row[leftKeyCol] !== '' && row[leftKeyCol] !== null && row[leftKeyCol] !== undefined &&
@@ -1103,7 +1119,7 @@ function displayMergePreview(mergedData, leftTable, rightTable, joinType) {
             row[leftKeyCol + (rightKeyCol < leftKeyCol ? 0 : rightKeyCol - 1)] !== null &&
             row[leftKeyCol + (rightKeyCol < leftKeyCol ? 0 : rightKeyCol - 1)] !== undefined
         ).length;
-    } else if (joinType === 'left') {
+    } else if (effectiveJoinType === 'left') {
         // LEFT JOIN: 计算左表有匹配的行数
         const leftTableSelect = document.getElementById('leftTableSelect');
         const [leftTableIndex, leftSheetIndex] = leftTableSelect.value.split('-').map(Number);
@@ -1129,7 +1145,7 @@ function displayMergePreview(mergedData, leftTable, rightTable, joinType) {
             const key = row[leftKeyCol];
             return key !== undefined && key !== null && key !== '' && rightIndex.has(key);
         }).length;
-    } else if (joinType === 'right') {
+    } else if (effectiveJoinType === 'right') {
         // RIGHT JOIN: 计算右表有匹配的行数
         const leftTableSelect = document.getElementById('leftTableSelect');
         const [leftTableIndex, leftSheetIndex] = leftTableSelect.value.split('-').map(Number);
@@ -1155,7 +1171,7 @@ function displayMergePreview(mergedData, leftTable, rightTable, joinType) {
             const key = row[rightKeyCol];
             return key !== undefined && key !== null && key !== '' && leftIndex.has(key);
         }).length;
-    } else if (joinType === 'full') {
+    } else if (effectiveJoinType === 'full') {
         // FULL OUTER JOIN: 计算所有匹配的行数
         const leftTableSelect = document.getElementById('leftTableSelect');
         const [leftTableIndex, leftSheetIndex] = leftTableSelect.value.split('-').map(Number);

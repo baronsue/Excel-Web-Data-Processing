@@ -108,6 +108,19 @@ header p {
     margin-bottom: 20px;
 }
 
+/* 隐藏但可点击的文件输入（避免 display:none 造成 click() 失效） */
+.file-input-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
 .upload-btn {
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
