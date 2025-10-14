@@ -99,7 +99,8 @@ function processFile(file) {
                 const sheet = workbook.Sheets[sheetName];
                 if (!sheet) return;
                 // 使用更稳健的参数：保留空单元格、原始值
-                const sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true });
+                let sheetData = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: true, blankrows: true });
+                sheetData = normalizeSheetData(sheetData);
                 
                 // 跳过完全空表
                 const hasContent = Array.isArray(sheetData) && sheetData.some(row => Array.isArray(row) && row.some(cell => cell !== '' && cell !== null && cell !== undefined));
@@ -146,6 +147,51 @@ function processFile(file) {
     } else {
         reader.readAsArrayBuffer(file);
     }
+}
+
+// 规范化二维数组：
+// - 统一每行列数
+// - 生成/补全表头
+// - 去除末尾全空行
+function normalizeSheetData(data) {
+    if (!Array.isArray(data)) return [];
+    // 去除末尾连续空行
+    let end = data.length - 1;
+    const isEmptyRow = (row) => !row || row.every(cell => cell === '' || cell === null || cell === undefined);
+    while (end >= 0 && isEmptyRow(data[end])) end--;
+    const trimmed = data.slice(0, end + 1);
+    if (trimmed.length === 0) return [];
+
+    // 计算最大列数
+    const maxCols = trimmed.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
+    if (maxCols === 0) return [];
+
+    // 标准化每行长度
+    for (let i = 0; i < trimmed.length; i++) {
+        if (!Array.isArray(trimmed[i])) trimmed[i] = [];
+        if (trimmed[i].length < maxCols) {
+            trimmed[i] = trimmed[i].concat(new Array(maxCols - trimmed[i].length).fill(''));
+        } else if (trimmed[i].length > maxCols) {
+            trimmed[i] = trimmed[i].slice(0, maxCols);
+        }
+    }
+
+    // 处理表头：若首行全空，或大部分为空，则生成默认表头
+    const header = trimmed[0];
+    const nonEmptyHeaderCount = header.filter(c => c !== '' && c !== null && c !== undefined).length;
+    if (nonEmptyHeaderCount < Math.ceil(maxCols / 2)) {
+        const generated = new Array(maxCols).fill(0).map((_, i) => `列${i + 1}`);
+        trimmed[0] = generated;
+    } else {
+        // 补全缺失表头名称
+        for (let i = 0; i < maxCols; i++) {
+            if (trimmed[0][i] === '' || trimmed[0][i] === null || trimmed[0][i] === undefined) {
+                trimmed[0][i] = `列${i + 1}`;
+            }
+        }
+    }
+
+    return trimmed;
 }
 
 function displayData() {
