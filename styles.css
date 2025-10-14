@@ -533,6 +533,26 @@ header p {
     background: #5a6fd8;
 }
 
+/* 移动端滚动与触控优化（通用） */
+.table-container {
+    -webkit-overflow-scrolling: touch; /* iOS 惯性滚动 */
+}
+
+select,
+button,
+input[type="text"],
+input[type="number"] {
+    touch-action: manipulation; /* 降低点击延迟 */
+}
+
+/* 避免 iOS 输入放大：设置最小字体 */
+.data-table input,
+input,
+select,
+button {
+    font-size: 16px;
+}
+
 /* 加载动画 */
 .loading {
     position: fixed;
@@ -621,6 +641,26 @@ header p {
     .tables-list {
         grid-template-columns: 1fr;
     }
+    /* 提升触控命中与可读性 */
+    .tool-btn,
+    .merge-btn,
+    .filter-controls button {
+        padding: 12px 18px;
+        min-height: 44px; /* 推荐触控尺寸 */
+    }
+
+    .table-card {
+        padding: 12px;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 10px 6px;
+    }
+
+    .upload-area {
+        padding: 28px 12px;
+    }
 }
 
 /* 选中行样式 */
@@ -648,4 +688,98 @@ header p {
 .stat-value {
     color: #667eea;
     font-weight: 600;
+}
+
+/* 进一步的小屏优化：<= 480px */
+@media (max-width: 480px) {
+    header h1 {
+        font-size: 1.6rem;
+    }
+    header p {
+        font-size: 0.95rem;
+    }
+
+    .tables-header h3,
+    .table-header h3,
+    .analysis-section h3,
+    .merge-header h3,
+    .merge-preview-header h3 {
+        font-size: 1.1rem;
+    }
+
+    .table-info span,
+    .preview-info span,
+    .tables-card-info span,
+    .stat-item {
+        font-size: 0.9rem;
+    }
+
+    .tool-btn,
+    .merge-btn,
+    .filter-controls button {
+        width: 100%;
+    }
+
+    .join-options {
+        grid-template-columns: 1fr;
+    }
+
+    .key-column-selector,
+    .merge-table-selector {
+        grid-template-columns: 1fr;
+    }
+
+    .data-table th {
+        font-size: 0.95rem;
+        white-space: nowrap; /* 减少换行 */
+    }
+    .data-table td {
+        font-size: 0.95rem;
+    }
+
+    .data-table input {
+        padding: 6px;
+    }
+
+    .table-container {
+        margin: 0 -10px; /* 扩大可视宽度 */
+        padding: 0 10px; /* 保持内容不贴边 */
+    }
+
+    .upload-area h3 {
+        font-size: 1.2rem;
+    }
+    .upload-area p {
+        font-size: 0.9rem;
+    }
+}
+
+/* 超小屏优化：<= 420px */
+@media (max-width: 420px) {
+    .toolbar {
+        gap: 8px;
+    }
+    .toolbar-left, .toolbar-right {
+        gap: 8px;
+    }
+
+    .tool-btn,
+    .merge-btn,
+    .filter-controls button {
+        padding: 12px 14px;
+        min-height: 44px;
+    }
+
+    .table-card-title {
+        font-size: 1rem;
+    }
+
+    .data-table th,
+    .data-table td {
+        padding: 8px 6px;
+    }
+
+    .analysis-grid {
+        grid-template-columns: 1fr;
+    }
 }
