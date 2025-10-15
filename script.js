@@ -277,36 +277,74 @@ function analyzeDataTypes(rows, header) {
 function renderDataStats() {
   const cards = [];
   
-  if (state.tableA.header.length > 0) {
-    const types = analyzeDataTypes(state.tableA.rows, state.tableA.header);
-    cards.push(`
-      <div class="stat-card">
-        <h3>左表 (A)</h3>
-        <div class="stat-value">${state.tableA.rows.length}</div>
-        <div class="stat-detail">${state.tableA.header.length} 列 | ${state.tableA.file ? formatBytes(state.tableA.file.size) : ''}</div>
-      </div>
-    `);
-  }
-  
-  if (state.tableB.header.length > 0) {
-    const types = analyzeDataTypes(state.tableB.rows, state.tableB.header);
-    cards.push(`
-      <div class="stat-card">
-        <h3>右表 (B)</h3>
-        <div class="stat-value">${state.tableB.rows.length}</div>
-        <div class="stat-detail">${state.tableB.header.length} 列 | ${state.tableB.file ? formatBytes(state.tableB.file.size) : ''}</div>
-      </div>
-    `);
-  }
-  
-  if (state.result.header.length > 0) {
-    cards.push(`
-      <div class="stat-card">
-        <h3>合并结果</h3>
-        <div class="stat-value">${state.result.rows.length}</div>
-        <div class="stat-detail">${state.result.header.length} 列</div>
-      </div>
-    `);
+  if (state.mode === 'dual') {
+    // 双表模式统计
+    if (state.tableA.header.length > 0) {
+      const types = analyzeDataTypes(state.tableA.rows, state.tableA.header);
+      cards.push(`
+        <div class="stat-card">
+          <h3>左表 (A)</h3>
+          <div class="stat-value">${state.tableA.rows.length}</div>
+          <div class="stat-detail">${state.tableA.header.length} 列 | ${state.tableA.file ? formatBytes(state.tableA.file.size) : ''}</div>
+        </div>
+      `);
+    }
+    
+    if (state.tableB.header.length > 0) {
+      const types = analyzeDataTypes(state.tableB.rows, state.tableB.header);
+      cards.push(`
+        <div class="stat-card">
+          <h3>右表 (B)</h3>
+          <div class="stat-value">${state.tableB.rows.length}</div>
+          <div class="stat-detail">${state.tableB.header.length} 列 | ${state.tableB.file ? formatBytes(state.tableB.file.size) : ''}</div>
+        </div>
+      `);
+    }
+    
+    if (state.result.header.length > 0) {
+      cards.push(`
+        <div class="stat-card">
+          <h3>合并结果</h3>
+          <div class="stat-value">${state.result.rows.length}</div>
+          <div class="stat-detail">${state.result.header.length} 列</div>
+        </div>
+      `);
+    }
+  } else if (state.mode === 'single') {
+    // 单表模式统计
+    if (state.singleTable.file) {
+      cards.push(`
+        <div class="stat-card">
+          <h3>上传文件</h3>
+          <div class="stat-value">${state.singleTable.sheets.length}</div>
+          <div class="stat-detail">工作表数量 | ${formatBytes(state.singleTable.file.size)}</div>
+        </div>
+      `);
+    }
+    
+    if (state.singleTable.selectedSheets.length > 0) {
+      const totalRows = state.singleTable.sheets
+        .filter(sheet => state.singleTable.selectedSheets.includes(sheet.name))
+        .reduce((sum, sheet) => sum + sheet.rows.length, 0);
+      
+      cards.push(`
+        <div class="stat-card">
+          <h3>选中工作表</h3>
+          <div class="stat-value">${state.singleTable.selectedSheets.length}</div>
+          <div class="stat-detail">共 ${totalRows} 行数据</div>
+        </div>
+      `);
+    }
+    
+    if (state.processedData.header.length > 0) {
+      cards.push(`
+        <div class="stat-card">
+          <h3>处理结果</h3>
+          <div class="stat-value">${state.processedData.rows.length}</div>
+          <div class="stat-detail">${state.processedData.header.length} 列</div>
+        </div>
+      `);
+    }
   }
   
   dataStats.innerHTML = cards.join('');
@@ -969,10 +1007,13 @@ function restoreSettings() {
 
 // 清理不匹配的键列
 function cleanInvalidKeys() {
-  // 清理左表键列中不存在的列名
-  state.join.keysA = state.join.keysA.filter(key => state.tableA.header.includes(key));
-  // 清理右表键列中不存在的列名
-  state.join.keysB = state.join.keysB.filter(key => state.tableB.header.includes(key));
+  // 只在双表模式下清理键列
+  if (state.mode === 'dual') {
+    // 清理左表键列中不存在的列名
+    state.join.keysA = state.join.keysA.filter(key => state.tableA.header.includes(key));
+    // 清理右表键列中不存在的列名
+    state.join.keysB = state.join.keysB.filter(key => state.tableB.header.includes(key));
+  }
 }
 
 // 数据验证
@@ -980,66 +1021,92 @@ function validateData() {
   state.errors = [];
   state.warnings = [];
   
-  // 检查文件上传
-  if (!state.tableA.file) {
-    state.errors.push('请上传左表文件');
-  }
-  if (!state.tableB.file) {
-    state.errors.push('请上传右表文件');
-  }
-  
-  // 检查数据完整性
-  if (state.tableA.rows.length === 0) {
-    state.warnings.push('左表没有数据行');
-  }
-  if (state.tableB.rows.length === 0) {
-    state.warnings.push('右表没有数据行');
-  }
-  
-  // 检查键列选择
-  if (state.join.keysA.length === 0) {
-    state.errors.push('请选择左表键列');
-  }
-  if (state.join.keysB.length === 0) {
-    state.errors.push('请选择右表键列');
-  }
-  if (state.join.keysA.length !== state.join.keysB.length) {
-    state.errors.push(`键列数量不匹配：左表 ${state.join.keysA.length} 个，右表 ${state.join.keysB.length} 个`);
-  }
-  
-  // 检查数据质量
-  if (state.tableA.rows.length > 0) {
-    const emptyRowsA = state.tableA.rows.filter(row => row.every(cell => !cell || cell.toString().trim() === '')).length;
-    if (emptyRowsA > 0) {
-      state.warnings.push(`左表有 ${emptyRowsA} 行空数据`);
+  // 根据模式进行不同的验证
+  if (state.mode === 'dual') {
+    // 双表模式验证
+    if (!state.tableA.file) {
+      state.errors.push('请上传左表文件');
     }
-  }
-  
-  if (state.tableB.rows.length > 0) {
-    const emptyRowsB = state.tableB.rows.filter(row => row.every(cell => !cell || cell.toString().trim() === '')).length;
-    if (emptyRowsB > 0) {
-      state.warnings.push(`右表有 ${emptyRowsB} 行空数据`);
+    if (!state.tableB.file) {
+      state.errors.push('请上传右表文件');
     }
-  }
-  
-  // 检查键列数据质量
-  if (state.join.keysA.length > 0 && state.tableA.rows.length > 0) {
-    const keyIndexA = state.join.keysA.map(key => state.tableA.header.indexOf(key));
-    const nullKeysA = state.tableA.rows.filter(row => 
-      keyIndexA.some(idx => !row[idx] || row[idx].toString().trim() === '')
-    ).length;
-    if (nullKeysA > 0) {
-      state.warnings.push(`左表键列有 ${nullKeysA} 行空值`);
+    
+    // 检查数据完整性
+    if (state.tableA.rows.length === 0) {
+      state.warnings.push('左表没有数据行');
     }
-  }
-  
-  if (state.join.keysB.length > 0 && state.tableB.rows.length > 0) {
-    const keyIndexB = state.join.keysB.map(key => state.tableB.header.indexOf(key));
-    const nullKeysB = state.tableB.rows.filter(row => 
-      keyIndexB.some(idx => !row[idx] || row[idx].toString().trim() === '')
-    ).length;
-    if (nullKeysB > 0) {
-      state.warnings.push(`右表键列有 ${nullKeysB} 行空值`);
+    if (state.tableB.rows.length === 0) {
+      state.warnings.push('右表没有数据行');
+    }
+    
+    // 检查键列选择
+    if (state.join.keysA.length === 0) {
+      state.errors.push('请选择左表键列');
+    }
+    if (state.join.keysB.length === 0) {
+      state.errors.push('请选择右表键列');
+    }
+    if (state.join.keysA.length !== state.join.keysB.length) {
+      state.errors.push(`键列数量不匹配：左表 ${state.join.keysA.length} 个，右表 ${state.join.keysB.length} 个`);
+    }
+    
+    // 检查数据质量
+    if (state.tableA.rows.length > 0) {
+      const emptyRowsA = state.tableA.rows.filter(row => row.every(cell => !cell || cell.toString().trim() === '')).length;
+      if (emptyRowsA > 0) {
+        state.warnings.push(`左表有 ${emptyRowsA} 行空数据`);
+      }
+    }
+    
+    if (state.tableB.rows.length > 0) {
+      const emptyRowsB = state.tableB.rows.filter(row => row.every(cell => !cell || cell.toString().trim() === '')).length;
+      if (emptyRowsB > 0) {
+        state.warnings.push(`右表有 ${emptyRowsB} 行空数据`);
+      }
+    }
+    
+    // 检查键列数据质量
+    if (state.join.keysA.length > 0 && state.tableA.rows.length > 0) {
+      const keyIndexA = state.join.keysA.map(key => state.tableA.header.indexOf(key));
+      const nullKeysA = state.tableA.rows.filter(row => 
+        keyIndexA.some(idx => !row[idx] || row[idx].toString().trim() === '')
+      ).length;
+      if (nullKeysA > 0) {
+        state.warnings.push(`左表键列有 ${nullKeysA} 行空值`);
+      }
+    }
+    
+    if (state.join.keysB.length > 0 && state.tableB.rows.length > 0) {
+      const keyIndexB = state.join.keysB.map(key => state.tableB.header.indexOf(key));
+      const nullKeysB = state.tableB.rows.filter(row => 
+        keyIndexB.some(idx => !row[idx] || row[idx].toString().trim() === '')
+      ).length;
+      if (nullKeysB > 0) {
+        state.warnings.push(`右表键列有 ${nullKeysB} 行空值`);
+      }
+    }
+  } else if (state.mode === 'single') {
+    // 单表模式验证
+    if (!state.singleTable.file) {
+      state.errors.push('请上传单表文件');
+    }
+    
+    if (state.singleTable.sheets.length === 0) {
+      state.warnings.push('没有可用的工作表');
+    }
+    
+    if (state.singleTable.selectedSheets.length === 0) {
+      state.warnings.push('请选择要处理的工作表');
+    }
+    
+    // 检查单表数据质量
+    if (state.processedData.rows.length > 0) {
+      const emptyRows = state.processedData.rows.filter(row => 
+        row.every(cell => !cell || cell.toString().trim() === '')
+      ).length;
+      if (emptyRows > 0) {
+        state.warnings.push(`处理后的数据有 ${emptyRows} 行空数据`);
+      }
     }
   }
   
