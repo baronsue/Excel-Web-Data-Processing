@@ -20,23 +20,39 @@
 
   <main class="container">
     <section class="card">
-      <h2>1. 上传数据文件</h2>
+      <h2>📂 1. 上传数据文件</h2>
       <div class="upload-grid">
         <div>
           <label class="label">左表文件 (A)</label>
-          <input id="fileA" type="file" accept=".xlsx,.xls,.csv" />
+          <div id="dropzoneA" class="dropzone">
+            <div class="dropzone-content">
+              <span class="dropzone-icon">📄</span>
+              <span class="dropzone-text">拖拽文件到此处或点击选择</span>
+            </div>
+            <input id="fileA" type="file" accept=".xlsx,.xls,.csv" />
+          </div>
+          <div class="file-info" id="fileInfoA"></div>
           <div class="row small">
             <label>工作表：</label>
             <select id="sheetA"></select>
           </div>
+          <button id="previewA" class="btn small" style="margin-top: 8px;">预览左表</button>
         </div>
         <div>
           <label class="label">右表文件 (B)</label>
-          <input id="fileB" type="file" accept=".xlsx,.xls,.csv" />
+          <div id="dropzoneB" class="dropzone">
+            <div class="dropzone-content">
+              <span class="dropzone-icon">📄</span>
+              <span class="dropzone-text">拖拽文件到此处或点击选择</span>
+            </div>
+            <input id="fileB" type="file" accept=".xlsx,.xls,.csv" />
+          </div>
+          <div class="file-info" id="fileInfoB"></div>
           <div class="row small">
             <label>工作表：</label>
             <select id="sheetB"></select>
           </div>
+          <button id="previewB" class="btn small" style="margin-top: 8px;">预览右表</button>
         </div>
       </div>
       <div class="row small">
@@ -45,7 +61,7 @@
     </section>
 
     <section class="card">
-      <h2>2. 选择合并键与类型</h2>
+      <h2>🔗 2. 选择合并键与类型</h2>
       <div class="grid-2">
         <div>
           <label class="label">左表键列</label>
@@ -59,29 +75,47 @@
       <div class="row">
         <label class="label">Join 类型</label>
         <select id="joinType">
-          <option value="inner">INNER</option>
-          <option value="left">LEFT</option>
-          <option value="right">RIGHT</option>
-          <option value="full">FULL</option>
+          <option value="inner">INNER JOIN（交集）</option>
+          <option value="left">LEFT JOIN（左表全部）</option>
+          <option value="right">RIGHT JOIN（右表全部）</option>
+          <option value="full">FULL OUTER JOIN（并集）</option>
         </select>
         <label class="label">空白/缺失填充值</label>
         <input id="nullFill" type="text" placeholder="例如：NULL" value="" />
       </div>
       <div class="row">
-        <button id="runJoin" class="btn primary">执行合并</button>
+        <button id="runJoin" class="btn primary">✨ 执行合并</button>
+        <button id="saveHistory" class="btn ghost">💾 保存到历史</button>
       </div>
     </section>
 
     <section class="card">
-      <h2>3. 预览与导出</h2>
-      <div class="row small stats" id="stats"></div>
+      <h2>📊 3. 数据预览与统计</h2>
+      <div id="dataStats" class="data-stats-grid"></div>
+    </section>
+
+    <section class="card">
+      <h2>📋 4. 结果预览与导出</h2>
+      <div class="row small">
+        <div id="stats" class="stats"></div>
+        <div style="margin-left: auto; display: flex; gap: 8px;">
+          <input id="searchTable" type="text" placeholder="🔍 搜索表格..." style="width: 200px;" />
+          <button id="clearFilter" class="btn ghost small">清除</button>
+        </div>
+      </div>
       <div class="table-wrap">
         <table id="preview"></table>
       </div>
       <div class="row">
-        <button id="exportCSV" class="btn">导出 CSV</button>
-        <button id="exportXLSX" class="btn">导出 XLSX</button>
+        <button id="exportCSV" class="btn">📥 导出 CSV</button>
+        <button id="exportXLSX" class="btn">📥 导出 XLSX</button>
+        <button id="exportJSON" class="btn">📥 导出 JSON</button>
       </div>
+    </section>
+
+    <section class="card" id="historySection" style="display: none;">
+      <h2>🕒 历史记录</h2>
+      <div id="historyList" class="history-list"></div>
     </section>
   </main>
 
