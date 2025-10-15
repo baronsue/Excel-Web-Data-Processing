@@ -314,6 +314,14 @@ function restoreSettings() {
   } catch {}
 }
 
+// 清理不匹配的键列
+function cleanInvalidKeys() {
+  // 清理左表键列中不存在的列名
+  state.join.keysA = state.join.keysA.filter(key => state.tableA.header.includes(key));
+  // 清理右表键列中不存在的列名
+  state.join.keysB = state.join.keysB.filter(key => state.tableB.header.includes(key));
+}
+
 // 解析
 async function parseFileToTable(file, side) {
   if (!file) return;
@@ -399,6 +407,7 @@ function setupDropzone(dropzone, fileInput, side) {
       const fileInfo = side === 'A' ? fileInfoA : fileInfoB;
       setOptions(sheetSelect, table.sheets);
       showFileInfo(files[0], fileInfo);
+      cleanInvalidKeys(); // 清理不匹配的键列
       renderKeyChips();
       renderDataStats();
       persistSettings();
@@ -412,6 +421,7 @@ fileA.addEventListener('change', async (e) => {
   await parseFileToTable(state.tableA.file, 'A');
   setOptions(sheetA, state.tableA.sheets);
   showFileInfo(state.tableA.file, fileInfoA);
+  cleanInvalidKeys(); // 清理不匹配的键列
   renderKeyChips();
   renderDataStats();
   persistSettings();
@@ -422,6 +432,7 @@ fileB.addEventListener('change', async (e) => {
   await parseFileToTable(state.tableB.file, 'B');
   setOptions(sheetB, state.tableB.sheets);
   showFileInfo(state.tableB.file, fileInfoB);
+  cleanInvalidKeys(); // 清理不匹配的键列
   renderKeyChips();
   renderDataStats();
   persistSettings();
@@ -430,6 +441,7 @@ fileB.addEventListener('change', async (e) => {
 sheetA.addEventListener('change', () => {
   state.tableA.selectedSheet = sheetA.value;
   extractSheet(state.tableA, state.tableA.selectedSheet);
+  cleanInvalidKeys(); // 清理不匹配的键列
   renderKeyChips();
   renderDataStats();
 });
@@ -437,6 +449,7 @@ sheetA.addEventListener('change', () => {
 sheetB.addEventListener('change', () => {
   state.tableB.selectedSheet = sheetB.value;
   extractSheet(state.tableB, state.tableB.selectedSheet);
+  cleanInvalidKeys(); // 清理不匹配的键列
   renderKeyChips();
   renderDataStats();
 });
@@ -444,6 +457,7 @@ sheetB.addEventListener('change', () => {
 hasHeader.addEventListener('change', () => {
   if (state.tableA.workbook && state.tableA.selectedSheet) extractSheet(state.tableA, state.tableA.selectedSheet);
   if (state.tableB.workbook && state.tableB.selectedSheet) extractSheet(state.tableB, state.tableB.selectedSheet);
+  cleanInvalidKeys(); // 清理不匹配的键列
   renderKeyChips();
   renderDataStats();
   persistSettings();
