@@ -986,6 +986,20 @@ tr:hover td {
   margin-top: 4px;
 }
 
+.undo-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(147, 112, 219, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.operation-history-text {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
 .operation-content select,
 .operation-content input {
   padding: 8px 10px;

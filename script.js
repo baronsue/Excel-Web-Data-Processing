@@ -26,6 +26,10 @@ const state = {
   },
   processedData: { header: [], rows: [], stats: null },
   originalData: { header: [], rows: [], stats: null }, // 用于恢复筛选前的数据
+  // 操作历史栈
+  operationHistory: [],
+  historyIndex: -1,
+  maxHistorySize: 50,
 };
 
 // DOM
@@ -79,6 +83,103 @@ const singleKeysA = $('#singleKeysA');
 const singleKeysB = $('#singleKeysB');
 const singleJoinType = $('#singleJoinType');
 const singleNullFill = $('#singleNullFill');
+const dataOperations = $('#dataOperations');
+const undoOperation = $('#undoOperation');
+const redoOperation = $('#redoOperation');
+const operationHistory = $('#operationHistory');
+const clearFilterBtn = $('#clearFilterBtn');
+
+// 操作历史管理
+function saveOperationSnapshot(operationName) {
+  // 如果在历史中间进行新操作，丢弃后面的历史
+  if (state.historyIndex < state.operationHistory.length - 1) {
+    state.operationHistory = state.operationHistory.slice(0, state.historyIndex + 1);
+  }
+  
+  // 保存当前数据快照
+  const snapshot = {
+    name: operationName,
+    timestamp: new Date(),
+    data: {
+      header: [...state.processedData.header],
+      rows: state.processedData.rows.map(row => [...row]),
+      stats: { ...state.processedData.stats }
+    }
+  };
+  
+  state.operationHistory.push(snapshot);
+  state.historyIndex++;
+  
+  // 限制历史大小
+  if (state.operationHistory.length > state.maxHistorySize) {
+    state.operationHistory.shift();
+    state.historyIndex--;
+  }
+  
+  updateUndoRedoButtons();
+}
+
+function undoLastOperation() {
+  if (state.historyIndex > 0) {
+    state.historyIndex--;
+    const snapshot = state.operationHistory[state.historyIndex];
+    
+    // 恢复数据
+    state.processedData = {
+      header: [...snapshot.data.header],
+      rows: snapshot.data.rows.map(row => [...row]),
+      stats: { ...snapshot.data.stats }
+    };
+    
+    renderTable(state.processedData.header, state.processedData.rows);
+    renderStats(state.processedData.stats);
+    updateOperationSelects();
+    updateUndoRedoButtons();
+    
+    showNotification(`已撤销操作: ${state.operationHistory[state.historyIndex + 1].name}`, 'info');
+  }
+}
+
+function redoLastOperation() {
+  if (state.historyIndex < state.operationHistory.length - 1) {
+    state.historyIndex++;
+    const snapshot = state.operationHistory[state.historyIndex];
+    
+    // 恢复数据
+    state.processedData = {
+      header: [...snapshot.data.header],
+      rows: snapshot.data.rows.map(row => [...row]),
+      stats: { ...snapshot.data.stats }
+    };
+    
+    renderTable(state.processedData.header, state.processedData.rows);
+    renderStats(state.processedData.stats);
+    updateOperationSelects();
+    updateUndoRedoButtons();
+    
+    showNotification(`已重做操作: ${snapshot.name}`, 'info');
+  }
+}
+
+function updateUndoRedoButtons() {
+  // 更新按钮状态
+  undoOperation.disabled = state.historyIndex <= 0;
+  redoOperation.disabled = state.historyIndex >= state.operationHistory.length - 1;
+  
+  // 更新历史文本
+  if (state.operationHistory.length > 0) {
+    const currentOp = state.operationHistory[state.historyIndex];
+    operationHistory.textContent = `当前: ${currentOp.name} (${state.historyIndex + 1}/${state.operationHistory.length})`;
+  } else {
+    operationHistory.textContent = '';
+  }
+}
+
+function clearOperationHistory() {
+  state.operationHistory = [];
+  state.historyIndex = -1;
+  updateUndoRedoButtons();
+}
 
 // 工具函数
 function readFileAsArrayBuffer(file) {
@@ -453,7 +554,12 @@ function switchMode(mode) {
   dualTableSection.style.display = mode === 'dual' ? 'block' : 'none';
   singleTableSection.style.display = mode === 'single' ? 'block' : 'none';
   singleTableSheets.style.display = mode === 'single' && state.singleTable.sheets.length > 0 ? 'block' : 'none';
-  singleTableOperations.style.display = mode === 'single' && state.singleTable.sheets.length > 0 ? 'block' : 'none';
+  
+  // 数据操作模块在任何模式下都可能显示（当有数据时）
+  // 但切换模式时先隐藏，等新数据生成时再显示
+  if (state.processedData.rows.length === 0) {
+    dataOperations.style.display = 'none';
+  }
   
   // 保存模式设置
   localStorage.setItem('excel-join-mode', mode);
@@ -910,6 +1016,14 @@ function mergeAllSheetsData() {
     renderTable(mergedHeader, mergedRows);
     renderStats(state.processedData.stats);
     
+    // 清空操作历史并保存初始快照
+    clearOperationHistory();
+    saveOperationSnapshot('初始数据');
+    
+    // 显示数据操作模块
+    dataOperations.style.display = 'block';
+    updateOperationSelects();
+    
   } catch (error) {
     console.error('合并失败:', error);
     showNotification('合并失败: ' + error.message, 'error');
@@ -998,6 +1112,10 @@ function applyDataFilter() {
   
   renderTable(state.processedData.header, filteredRows);
   renderStats(state.processedData.stats);
+  
+  // 保存操作快照
+  saveOperationSnapshot(`筛选: ${column} ${condition} ${value || '(非空)'}`);
+  
   showNotification(`筛选完成，剩余 ${filteredRows.length} 行数据（原始数据 ${sourceRows.length} 行）`, 'success');
 }
 
@@ -1066,6 +1184,10 @@ function applyDataSort() {
   
   state.processedData.rows = sortedRows;
   renderTable(state.processedData.header, sortedRows);
+  
+  // 保存操作快照
+  saveOperationSnapshot(`排序: ${column} (${order === 'asc' ? '升序' : '降序'})`);
+  
   showNotification(`排序完成`, 'success');
 }
 
@@ -1124,6 +1246,15 @@ function applyDataCleanup() {
   
   renderTable(state.processedData.header, cleanedRows);
   renderStats(state.processedData.stats);
+  
+  // 保存操作快照
+  const operationNames = {
+    'remove_duplicates': '去除重复行',
+    'remove_empty_rows': '删除空行',
+    'trim_whitespace': '去除首尾空格',
+    'fill_empty': '填充空值'
+  };
+  saveOperationSnapshot(`清洗: ${operationNames[operation] || operation}`);
   
   if (removedCount > 0) {
     showNotification(`清洗完成，${operation === 'remove_duplicates' ? '去重' : '删除'}了 ${removedCount} 行数据`, 'success');
@@ -1222,6 +1353,13 @@ function processSelectedSheetsData() {
     renderTable(mergedHeader, mergedRows);
     renderStats(state.processedData.stats);
     updateOperationSelects();
+    
+    // 清空操作历史并保存初始快照
+    clearOperationHistory();
+    saveOperationSnapshot('初始数据');
+    
+    // 显示数据操作模块
+    dataOperations.style.display = 'block';
     
   } catch (error) {
     console.error('处理失败:', error);
@@ -1871,9 +2009,13 @@ singleNullFill.addEventListener('input', () => {
 
 // 操作按钮事件
 $('#applyFilter').addEventListener('click', applyDataFilter);
-$('#clearFilter').addEventListener('click', clearDataFilter);
+clearFilterBtn.addEventListener('click', clearDataFilter);
 $('#applySort').addEventListener('click', applyDataSort);
 $('#applyCleanup').addEventListener('click', applyDataCleanup);
+
+// 撤销/重做按钮事件
+undoOperation.addEventListener('click', undoLastOperation);
+redoOperation.addEventListener('click', redoLastOperation);
 
 // 清洗操作变化时显示/隐藏填充值输入
 $('#cleanupOperation').addEventListener('change', (e) => {

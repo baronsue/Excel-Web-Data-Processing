@@ -191,99 +191,107 @@
         </div>
       </section>
 
-      <!-- 数据处理操作 -->
-      <section class="card" id="singleTableOperations" style="display: none;">
-        <h2>🛠️ 数据处理操作</h2>
-        <p class="section-hint">对合并后的数据进行筛选、排序、清洗等操作</p>
-        <div class="operations-grid">
-          <div class="operation-card">
-            <div class="operation-header">
-              <span class="operation-icon">🔍</span>
-              <h3>数据筛选</h3>
-            </div>
-            <div class="operation-content">
-              <label class="label">筛选列</label>
-              <select id="filterColumn"></select>
-              <label class="label">筛选条件</label>
-              <select id="filterCondition">
-                <option value="equals">等于</option>
-                <option value="contains">包含</option>
-                <option value="starts_with">开头是</option>
-                <option value="ends_with">结尾是</option>
-                <option value="greater">大于</option>
-                <option value="less">小于</option>
-                <option value="not_empty">非空</option>
-              </select>
-              <label class="label">筛选值</label>
-              <input id="filterValue" type="text" placeholder="输入筛选值" />
-              <div class="operation-actions">
-                <button id="applyFilter" class="btn small primary">应用筛选</button>
-                <button id="clearFilter" class="btn small outline">清除筛选</button>
-              </div>
-            </div>
-          </div>
-          
-          <div class="operation-card">
-            <div class="operation-header">
-              <span class="operation-icon">📊</span>
-              <h3>数据排序</h3>
-            </div>
-            <div class="operation-content">
-              <label class="label">排序列</label>
-              <select id="sortColumn"></select>
-              <label class="label">排序方式</label>
-              <select id="sortOrder">
-                <option value="asc">升序</option>
-                <option value="desc">降序</option>
-              </select>
-              <div class="operation-actions">
-                <button id="applySort" class="btn small primary">应用排序</button>
-              </div>
-            </div>
-          </div>
-          
-          <div class="operation-card">
-            <div class="operation-header">
-              <span class="operation-icon">🧹</span>
-              <h3>数据清洗</h3>
-            </div>
-            <div class="operation-content">
-              <label class="label">清洗操作</label>
-              <select id="cleanupOperation">
-                <option value="remove_duplicates">去除重复行</option>
-                <option value="remove_empty_rows">删除空行</option>
-                <option value="trim_whitespace">去除首尾空格</option>
-                <option value="fill_empty">填充空值</option>
-              </select>
-              <input id="fillValue" type="text" placeholder="填充值" style="display: none;" />
-              <div class="operation-actions">
-                <button id="applyCleanup" class="btn small primary">执行清洗</button>
-              </div>
-            </div>
-          </div>
-          
-          <div class="operation-card">
-            <div class="operation-header">
-              <span class="operation-icon">📈</span>
-              <h3>数据透视</h3>
-            </div>
-            <div class="operation-content">
-              <label class="label">行字段</label>
-              <select id="pivotRows"></select>
-              <label class="label">列字段</label>
-              <select id="pivotColumns"></select>
-              <label class="label">值字段</label>
-              <select id="pivotValues"></select>
-              <div class="operation-actions">
-                <button id="createPivot" class="btn small primary">创建透视表</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
     </div>
 
     <!-- ========== 通用结果展示区域 ========== -->
+    <!-- 数据处理操作（双表模式也显示） -->
+    <section class="card" id="dataOperations" style="display: none;">
+      <h2>🛠️ 数据处理操作</h2>
+      <p class="section-hint">对合并后的数据进行筛选、排序、清洗等操作</p>
+      <div class="operations-grid">
+        <div class="operation-card">
+          <div class="operation-header">
+            <span class="operation-icon">🔍</span>
+            <h3>数据筛选</h3>
+          </div>
+          <div class="operation-content">
+            <label class="label">筛选列</label>
+            <select id="filterColumn"></select>
+            <label class="label">筛选条件</label>
+            <select id="filterCondition">
+              <option value="equals">等于</option>
+              <option value="contains">包含</option>
+              <option value="starts_with">开头是</option>
+              <option value="ends_with">结尾是</option>
+              <option value="greater">大于</option>
+              <option value="less">小于</option>
+              <option value="not_empty">非空</option>
+            </select>
+            <label class="label">筛选值</label>
+            <input id="filterValue" type="text" placeholder="输入筛选值" />
+            <div class="operation-actions">
+              <button id="applyFilter" class="btn small primary">应用筛选</button>
+              <button id="clearFilterBtn" class="btn small outline">清除筛选</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="operation-card">
+          <div class="operation-header">
+            <span class="operation-icon">📊</span>
+            <h3>数据排序</h3>
+          </div>
+          <div class="operation-content">
+            <label class="label">排序列</label>
+            <select id="sortColumn"></select>
+            <label class="label">排序方式</label>
+            <select id="sortOrder">
+              <option value="asc">升序</option>
+              <option value="desc">降序</option>
+            </select>
+            <div class="operation-actions">
+              <button id="applySort" class="btn small primary">应用排序</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="operation-card">
+          <div class="operation-header">
+            <span class="operation-icon">🧹</span>
+            <h3>数据清洗</h3>
+          </div>
+          <div class="operation-content">
+            <label class="label">清洗操作</label>
+            <select id="cleanupOperation">
+              <option value="remove_duplicates">去除重复行</option>
+              <option value="remove_empty_rows">删除空行</option>
+              <option value="trim_whitespace">去除首尾空格</option>
+              <option value="fill_empty">填充空值</option>
+            </select>
+            <input id="fillValue" type="text" placeholder="填充值" style="display: none;" />
+            <div class="operation-actions">
+              <button id="applyCleanup" class="btn small primary">执行清洗</button>
+            </div>
+          </div>
+        </div>
+        
+        <div class="operation-card">
+          <div class="operation-header">
+            <span class="operation-icon">📈</span>
+            <h3>数据透视</h3>
+          </div>
+          <div class="operation-content">
+            <label class="label">行字段</label>
+            <select id="pivotRows"></select>
+            <label class="label">列字段</label>
+            <select id="pivotColumns"></select>
+            <label class="label">值字段</label>
+            <select id="pivotValues"></select>
+            <div class="operation-actions">
+              <button id="createPivot" class="btn small primary">创建透视表</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 撤销/重做按钮 -->
+      <div class="undo-section">
+        <button id="undoOperation" class="btn outline" disabled>↶ 撤销操作</button>
+        <button id="redoOperation" class="btn outline" disabled>↷ 重做操作</button>
+        <span id="operationHistory" class="operation-history-text"></span>
+      </div>
+    </section>
+
     <!-- 数据统计 -->
     <section class="card">
       <h2>📊 数据统计</h2>
