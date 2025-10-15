@@ -453,16 +453,37 @@ joinType.addEventListener('change', () => { state.join.type = joinType.value; pe
 nullFill.addEventListener('input', () => { state.join.nullFill = nullFill.value; persistSettings(); });
 
 function renderKeyChips() {
-  buildChips(keysA, state.tableA.header, state.join.keysA, (col) => {
-    toggleKey(state.join.keysA, col);
-    persistSettings();
-    renderKeyChips();
-  });
-  buildChips(keysB, state.tableB.header, state.join.keysB, (col) => {
-    toggleKey(state.join.keysB, col);
-    persistSettings();
-    renderKeyChips();
-  });
+  // 清空现有筹片
+  keysA.innerHTML = '';
+  keysB.innerHTML = '';
+  
+  // 渲染左表键列筹片
+  for (const col of state.tableA.header) {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (state.join.keysA.includes(col) ? ' active' : '');
+    chip.type = 'button';
+    chip.textContent = col;
+    chip.addEventListener('click', () => {
+      toggleKey(state.join.keysA, col);
+      persistSettings();
+      renderKeyChips(); // 重新渲染以更新状态
+    });
+    keysA.appendChild(chip);
+  }
+  
+  // 渲染右表键列筹片
+  for (const col of state.tableB.header) {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (state.join.keysB.includes(col) ? ' active' : '');
+    chip.type = 'button';
+    chip.textContent = col;
+    chip.addEventListener('click', () => {
+      toggleKey(state.join.keysB, col);
+      persistSettings();
+      renderKeyChips(); // 重新渲染以更新状态
+    });
+    keysB.appendChild(chip);
+  }
 }
 
 function toggleKey(arr, col) {
@@ -476,8 +497,13 @@ runJoin.addEventListener('click', () => {
     return;
   }
 
-  if (state.join.keysA.length !== state.join.keysB.length || state.join.keysA.length === 0) {
-    alert('请为左右表选择相同数量的键列');
+  if (state.join.keysA.length === 0 || state.join.keysB.length === 0) {
+    alert('请为左右表选择至少一个键列');
+    return;
+  }
+
+  if (state.join.keysA.length !== state.join.keysB.length) {
+    alert(`键列数量不匹配：左表 ${state.join.keysA.length} 个，右表 ${state.join.keysB.length} 个`);
     return;
   }
 
