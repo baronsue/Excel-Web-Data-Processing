@@ -99,7 +99,37 @@
     <section class="card" id="singleTableSheets" style="display: none;">
       <h2>📋 工作表管理</h2>
       <div class="sheets-grid" id="sheetsGrid"></div>
-      <div class="row">
+      
+      <!-- 键列选择区域（仅在选择2个工作表时显示） -->
+      <div id="singleTableKeys" style="display: none; margin-top: 1rem;">
+        <div class="row">
+          <div class="col">
+            <label class="label">第一个工作表键列</label>
+            <div id="singleKeysA" class="chips"></div>
+          </div>
+          <div class="col">
+            <label class="label">第二个工作表键列</label>
+            <div id="singleKeysB" class="chips"></div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col">
+            <label class="label" for="singleJoinType">合并类型</label>
+            <select id="singleJoinType" title="选择合并类型" aria-label="选择合并类型">
+              <option value="inner">内连接 (INNER JOIN) - 仅保留匹配的行</option>
+              <option value="left">左连接 (LEFT JOIN) - 保留第一个表的所有行</option>
+              <option value="right">右连接 (RIGHT JOIN) - 保留第二个表的所有行</option>
+              <option value="full">全连接 (FULL JOIN) - 保留两表的所有行</option>
+            </select>
+          </div>
+          <div class="col">
+            <label class="label" for="singleNullFill">空值填充</label>
+            <input id="singleNullFill" type="text" placeholder="留空表示空值" title="空值填充" aria-label="空值填充" />
+          </div>
+        </div>
+      </div>
+      
+      <div class="row" style="margin-top: 1rem;">
         <button id="mergeAllSheets" class="btn primary">🔄 合并所有工作表</button>
         <button id="processSelectedSheets" class="btn">⚙️ 处理选中工作表</button>
         <button id="exportSelectedSheets" class="btn">📥 导出选中工作表</button>

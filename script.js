@@ -12,7 +12,18 @@ const state = {
   warnings: [],
   // 单表处理状态
   mode: 'dual', // 'dual' 或 'single'
-  singleTable: { file: null, workbook: null, sheets: [], selectedSheets: [] },
+  singleTable: { 
+    file: null, 
+    workbook: null, 
+    sheets: [], 
+    selectedSheets: [],
+    singleJoin: {
+      keysA: [],
+      keysB: [],
+      type: 'inner',
+      nullFill: ''
+    }
+  },
   processedData: { header: [], rows: [], stats: null },
   originalData: { header: [], rows: [], stats: null }, // 用于恢复筛选前的数据
 };
@@ -63,6 +74,11 @@ const sheetsGrid = $('#sheetsGrid');
 const mergeAllSheets = $('#mergeAllSheets');
 const processSelectedSheets = $('#processSelectedSheets');
 const exportSelectedSheets = $('#exportSelectedSheets');
+const singleTableKeys = $('#singleTableKeys');
+const singleKeysA = $('#singleKeysA');
+const singleKeysB = $('#singleKeysB');
+const singleJoinType = $('#singleJoinType');
+const singleNullFill = $('#singleNullFill');
 
 // 工具函数
 function readFileAsArrayBuffer(file) {
@@ -755,6 +771,54 @@ function toggleSheet(sheetName) {
   renderSheetsGrid();
   updateOperationSelects(); // 更新操作选择框
   renderDataStats(); // 更新统计信息
+  
+  // 如果选择了恰好2个工作表，显示键列选择区域并渲染键列chips
+  if (state.singleTable.selectedSheets.length === 2) {
+    singleTableKeys.style.display = 'block';
+    renderSingleTableKeyChips();
+  } else {
+    singleTableKeys.style.display = 'none';
+  }
+}
+
+// 渲染单表模式的键列选择chips
+function renderSingleTableKeyChips() {
+  if (state.singleTable.selectedSheets.length !== 2) return;
+  
+  const sheet1 = state.singleTable.sheets.find(s => s.name === state.singleTable.selectedSheets[0]);
+  const sheet2 = state.singleTable.sheets.find(s => s.name === state.singleTable.selectedSheets[1]);
+  
+  if (!sheet1 || !sheet2) return;
+  
+  // 清空现有chips
+  singleKeysA.innerHTML = '';
+  singleKeysB.innerHTML = '';
+  
+  // 渲染第一个工作表的键列chips
+  for (const col of sheet1.header) {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (state.singleTable.singleJoin.keysA.includes(col) ? ' active' : '');
+    chip.type = 'button';
+    chip.textContent = col;
+    chip.addEventListener('click', () => {
+      toggleKey(state.singleTable.singleJoin.keysA, col);
+      renderSingleTableKeyChips();
+    });
+    singleKeysA.appendChild(chip);
+  }
+  
+  // 渲染第二个工作表的键列chips
+  for (const col of sheet2.header) {
+    const chip = document.createElement('button');
+    chip.className = 'chip' + (state.singleTable.singleJoin.keysB.includes(col) ? ' active' : '');
+    chip.type = 'button';
+    chip.textContent = col;
+    chip.addEventListener('click', () => {
+      toggleKey(state.singleTable.singleJoin.keysB, col);
+      renderSingleTableKeyChips();
+    });
+    singleKeysB.appendChild(chip);
+  }
 }
 
 function mergeAllSheetsData() {
@@ -775,25 +839,56 @@ function mergeAllSheetsData() {
       return;
     }
     
-    // 获取所有列名
-    const allHeaders = new Set();
-    selectedSheets.forEach(sheet => {
-      sheet.header.forEach(h => allHeaders.add(h));
-    });
-    const mergedHeader = Array.from(allHeaders);
+    let mergedHeader, mergedRows;
     
-    // 合并数据
-    const mergedRows = [];
-    selectedSheets.forEach(sheet => {
-      sheet.rows.forEach(row => {
-        const rowObj = {};
-        sheet.header.forEach((h, i) => {
-          rowObj[h] = row[i];
-        });
-        const mergedRow = mergedHeader.map(h => rowObj[h] || '');
-        mergedRows.push(mergedRow);
+    // 如果选择了恰好2个工作表且设置了键列，使用JOIN合并
+    if (selectedSheets.length === 2 && 
+        state.singleTable.singleJoin.keysA.length > 0 && 
+        state.singleTable.singleJoin.keysB.length > 0) {
+      
+      if (state.singleTable.singleJoin.keysA.length !== state.singleTable.singleJoin.keysB.length) {
+        showNotification('键列数量不匹配，请检查选择', 'error');
+        return;
+      }
+      
+      const result = joinRows({
+        headerA: selectedSheets[0].header,
+        headerB: selectedSheets[1].header,
+        rowsA: selectedSheets[0].rows,
+        rowsB: selectedSheets[1].rows,
+        keysA: state.singleTable.singleJoin.keysA,
+        keysB: state.singleTable.singleJoin.keysB,
+        type: state.singleTable.singleJoin.type,
+        nullFill: state.singleTable.singleJoin.nullFill,
       });
-    });
+      
+      mergedHeader = result.header;
+      mergedRows = result.rows;
+      
+      showNotification(`JOIN合并完成: ${result.stats.matched}条匹配，${result.stats.onlyLeft}条仅左表，${result.stats.onlyRight}条仅右表`, 'success');
+      
+    } else {
+      // 否则使用简单的行合并
+      const allHeaders = new Set();
+      selectedSheets.forEach(sheet => {
+        sheet.header.forEach(h => allHeaders.add(h));
+      });
+      mergedHeader = Array.from(allHeaders);
+      
+      mergedRows = [];
+      selectedSheets.forEach(sheet => {
+        sheet.rows.forEach(row => {
+          const rowObj = {};
+          sheet.header.forEach((h, i) => {
+            rowObj[h] = row[i];
+          });
+          const mergedRow = mergedHeader.map(h => rowObj[h] || '');
+          mergedRows.push(mergedRow);
+        });
+      });
+      
+      showNotification(`成功合并 ${selectedSheets.length} 个工作表，共 ${mergedRows.length} 行数据`, 'success');
+    }
     
     state.processedData = {
       header: mergedHeader,
@@ -814,7 +909,6 @@ function mergeAllSheetsData() {
     
     renderTable(mergedHeader, mergedRows);
     renderStats(state.processedData.stats);
-    showNotification(`成功合并 ${selectedSheets.length} 个工作表，共 ${mergedRows.length} 行数据`, 'success');
     
   } catch (error) {
     console.error('合并失败:', error);
@@ -1057,25 +1151,56 @@ function processSelectedSheetsData() {
       return;
     }
     
-    // 获取所有列名
-    const allHeaders = new Set();
-    selectedSheets.forEach(sheet => {
-      sheet.header.forEach(h => allHeaders.add(h));
-    });
-    const mergedHeader = Array.from(allHeaders);
+    let mergedHeader, mergedRows;
     
-    // 合并数据
-    const mergedRows = [];
-    selectedSheets.forEach(sheet => {
-      sheet.rows.forEach(row => {
-        const rowObj = {};
-        sheet.header.forEach((h, i) => {
-          rowObj[h] = row[i];
-        });
-        const mergedRow = mergedHeader.map(h => rowObj[h] || '');
-        mergedRows.push(mergedRow);
+    // 如果选择了恰好2个工作表且设置了键列，使用JOIN合并
+    if (selectedSheets.length === 2 && 
+        state.singleTable.singleJoin.keysA.length > 0 && 
+        state.singleTable.singleJoin.keysB.length > 0) {
+      
+      if (state.singleTable.singleJoin.keysA.length !== state.singleTable.singleJoin.keysB.length) {
+        showNotification('键列数量不匹配，请检查选择', 'error');
+        return;
+      }
+      
+      const result = joinRows({
+        headerA: selectedSheets[0].header,
+        headerB: selectedSheets[1].header,
+        rowsA: selectedSheets[0].rows,
+        rowsB: selectedSheets[1].rows,
+        keysA: state.singleTable.singleJoin.keysA,
+        keysB: state.singleTable.singleJoin.keysB,
+        type: state.singleTable.singleJoin.type,
+        nullFill: state.singleTable.singleJoin.nullFill,
       });
-    });
+      
+      mergedHeader = result.header;
+      mergedRows = result.rows;
+      
+      showNotification(`JOIN合并完成: ${result.stats.matched}条匹配，${result.stats.onlyLeft}条仅左表，${result.stats.onlyRight}条仅右表`, 'success');
+      
+    } else {
+      // 否则使用简单的行合并
+      const allHeaders = new Set();
+      selectedSheets.forEach(sheet => {
+        sheet.header.forEach(h => allHeaders.add(h));
+      });
+      mergedHeader = Array.from(allHeaders);
+      
+      mergedRows = [];
+      selectedSheets.forEach(sheet => {
+        sheet.rows.forEach(row => {
+          const rowObj = {};
+          sheet.header.forEach((h, i) => {
+            rowObj[h] = row[i];
+          });
+          const mergedRow = mergedHeader.map(h => rowObj[h] || '');
+          mergedRows.push(mergedRow);
+        });
+      });
+      
+      showNotification(`成功处理 ${selectedSheets.length} 个工作表，共 ${mergedRows.length} 行数据`, 'success');
+    }
     
     state.processedData = {
       header: mergedHeader,
@@ -1097,7 +1222,6 @@ function processSelectedSheetsData() {
     renderTable(mergedHeader, mergedRows);
     renderStats(state.processedData.stats);
     updateOperationSelects();
-    showNotification(`成功处理 ${selectedSheets.length} 个工作表，共 ${mergedRows.length} 行数据`, 'success');
     
   } catch (error) {
     console.error('处理失败:', error);
@@ -1736,6 +1860,14 @@ hasHeaderSingle.addEventListener('change', async () => {
 mergeAllSheets.addEventListener('click', mergeAllSheetsData);
 processSelectedSheets.addEventListener('click', processSelectedSheetsData);
 exportSelectedSheets.addEventListener('click', exportSelectedSheetsData);
+
+// 单表JOIN设置事件
+singleJoinType.addEventListener('change', () => {
+  state.singleTable.singleJoin.type = singleJoinType.value;
+});
+singleNullFill.addEventListener('input', () => {
+  state.singleTable.singleJoin.nullFill = singleNullFill.value;
+});
 
 // 操作按钮事件
 $('#applyFilter').addEventListener('click', applyDataFilter);
