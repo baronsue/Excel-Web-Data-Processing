@@ -57,7 +57,7 @@ const saveHistory = $('#saveHistory');
 const historySection = $('#historySection');
 const historyList = $('#historyList');
 const searchTable = $('#searchTable');
-const clearFilter = $('#clearFilter');
+const clearSearchBtn = $('#clearSearchBtn');
 
 // 单表处理相关DOM
 const dualTableMode = $('#dualTableMode');
@@ -494,7 +494,7 @@ function setupKeyboardShortcuts() {
     if (e.key === 'Escape') {
       if (searchTable.value) {
         searchTable.value = '';
-        clearFilter.click();
+        clearSearchBtn.click();
       }
     }
   });
@@ -1707,7 +1707,7 @@ searchTable.addEventListener('input', () => {
   });
 });
 
-clearFilter.addEventListener('click', () => {
+clearSearchBtn.addEventListener('click', () => {
   searchTable.value = '';
   const rows = preview.querySelectorAll('tbody tr');
   rows.forEach(row => row.style.display = '');
