@@ -14,6 +14,7 @@ const state = {
   mode: 'dual', // 'dual' 或 'single'
   singleTable: { file: null, workbook: null, sheets: [], selectedSheets: [] },
   processedData: { header: [], rows: [], stats: null },
+  originalData: { header: [], rows: [], stats: null }, // 用于恢复筛选前的数据
 };
 
 // DOM
@@ -804,6 +805,13 @@ function mergeAllSheetsData() {
       }
     };
     
+    // 保存原始数据副本，用于恢复筛选
+    state.originalData = {
+      header: [...mergedHeader],
+      rows: mergedRows.map(row => [...row]),
+      stats: { ...state.processedData.stats }
+    };
+    
     renderTable(mergedHeader, mergedRows);
     renderStats(state.processedData.stats);
     showNotification(`成功合并 ${selectedSheets.length} 个工作表，共 ${mergedRows.length} 行数据`, 'success');
@@ -832,51 +840,63 @@ function applyDataFilter() {
     return;
   }
   
+  // 如果是第一次筛选，保存当前数据到originalData
+  if (state.originalData.rows.length === 0) {
+    state.originalData = {
+      header: [...state.processedData.header],
+      rows: state.processedData.rows.map(row => [...row]),
+      stats: { ...state.processedData.stats }
+    };
+  }
+  
   const columnIndex = state.processedData.header.indexOf(column);
   if (columnIndex === -1) {
     showNotification('找不到指定的列', 'error');
     return;
   }
   
+  // 始终从原始数据筛选，以支持反复筛选
+  const sourceRows = state.originalData.rows.length > 0 ? state.originalData.rows : state.processedData.rows;
+  
   let filteredRows;
   switch (condition) {
     case 'equals':
-      filteredRows = state.processedData.rows.filter(row => 
+      filteredRows = sourceRows.filter(row => 
         String(row[columnIndex]).toLowerCase() === value.toLowerCase()
       );
       break;
     case 'contains':
-      filteredRows = state.processedData.rows.filter(row => 
+      filteredRows = sourceRows.filter(row => 
         String(row[columnIndex]).toLowerCase().includes(value.toLowerCase())
       );
       break;
     case 'starts_with':
-      filteredRows = state.processedData.rows.filter(row => 
+      filteredRows = sourceRows.filter(row => 
         String(row[columnIndex]).toLowerCase().startsWith(value.toLowerCase())
       );
       break;
     case 'ends_with':
-      filteredRows = state.processedData.rows.filter(row => 
+      filteredRows = sourceRows.filter(row => 
         String(row[columnIndex]).toLowerCase().endsWith(value.toLowerCase())
       );
       break;
     case 'greater':
-      filteredRows = state.processedData.rows.filter(row => 
+      filteredRows = sourceRows.filter(row => 
         Number(row[columnIndex]) > Number(value)
       );
       break;
     case 'less':
-      filteredRows = state.processedData.rows.filter(row => 
+      filteredRows = sourceRows.filter(row => 
         Number(row[columnIndex]) < Number(value)
       );
       break;
     case 'not_empty':
-      filteredRows = state.processedData.rows.filter(row => 
+      filteredRows = sourceRows.filter(row => 
         row[columnIndex] && String(row[columnIndex]).trim() !== ''
       );
       break;
     default:
-      filteredRows = state.processedData.rows;
+      filteredRows = sourceRows;
   }
   
   state.processedData.rows = filteredRows;
@@ -884,7 +904,31 @@ function applyDataFilter() {
   
   renderTable(state.processedData.header, filteredRows);
   renderStats(state.processedData.stats);
-  showNotification(`筛选完成，剩余 ${filteredRows.length} 行数据`, 'success');
+  showNotification(`筛选完成，剩余 ${filteredRows.length} 行数据（原始数据 ${sourceRows.length} 行）`, 'success');
+}
+
+// 清除筛选，还原数据
+function clearDataFilter() {
+  if (state.originalData.rows.length === 0) {
+    showNotification('当前没有应用筛选', 'info');
+    return;
+  }
+  
+  // 恢复原始数据
+  state.processedData = {
+    header: [...state.originalData.header],
+    rows: state.originalData.rows.map(row => [...row]),
+    stats: { ...state.originalData.stats }
+  };
+  
+  // 清空筛选输入
+  $('#filterColumn').value = '';
+  $('#filterCondition').value = 'equals';
+  $('#filterValue').value = '';
+  
+  renderTable(state.processedData.header, state.processedData.rows);
+  renderStats(state.processedData.stats);
+  showNotification(`已清除筛选，恢复 ${state.processedData.rows.length} 行数据`, 'success');
 }
 
 // 数据排序功能
@@ -1041,6 +1085,13 @@ function processSelectedSheetsData() {
         sheets: selectedSheets.length,
         originalRows: selectedSheets.reduce((sum, sheet) => sum + sheet.rows.length, 0)
       }
+    };
+    
+    // 保存原始数据副本，用于恢复筛选
+    state.originalData = {
+      header: [...mergedHeader],
+      rows: mergedRows.map(row => [...row]),
+      stats: { ...state.processedData.stats }
     };
     
     renderTable(mergedHeader, mergedRows);
@@ -1688,6 +1739,7 @@ exportSelectedSheets.addEventListener('click', exportSelectedSheetsData);
 
 // 操作按钮事件
 $('#applyFilter').addEventListener('click', applyDataFilter);
+$('#clearFilter').addEventListener('click', clearDataFilter);
 $('#applySort').addEventListener('click', applyDataSort);
 $('#applyCleanup').addEventListener('click', applyDataCleanup);
 
