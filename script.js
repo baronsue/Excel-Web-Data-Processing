@@ -1262,6 +1262,89 @@ function applyDataCleanup() {
   }
 }
 
+// 数据透视表功能
+function createPivotTable() {
+  const rowField = $('#pivotRows').value;
+  const columnField = $('#pivotColumns').value;
+  const valueField = $('#pivotValues').value;
+  
+  if (!rowField || !columnField || !valueField) {
+    showNotification('请选择行字段、列字段和值字段', 'warning');
+    return;
+  }
+  
+  if (state.processedData.rows.length === 0) {
+    showNotification('请先合并工作表', 'warning');
+    return;
+  }
+  
+  const rowIndex = state.processedData.header.indexOf(rowField);
+  const columnIndex = state.processedData.header.indexOf(columnField);
+  const valueIndex = state.processedData.header.indexOf(valueField);
+  
+  if (rowIndex === -1 || columnIndex === -1 || valueIndex === -1) {
+    showNotification('找不到指定的字段', 'error');
+    return;
+  }
+  
+  // 构建透视表数据结构
+  const pivotData = {};
+  const rowValues = new Set();
+  const columnValues = new Set();
+  
+  // 收集所有唯一的行值和列值
+  state.processedData.rows.forEach(row => {
+    const rowVal = String(row[rowIndex]);
+    const colVal = String(row[columnIndex]);
+    const val = Number(row[valueIndex]) || 0;
+    
+    rowValues.add(rowVal);
+    columnValues.add(colVal);
+    
+    if (!pivotData[rowVal]) {
+      pivotData[rowVal] = {};
+    }
+    if (!pivotData[rowVal][colVal]) {
+      pivotData[rowVal][colVal] = 0;
+    }
+    pivotData[rowVal][colVal] += val;
+  });
+  
+  // 转换为数组格式
+  const sortedRows = Array.from(rowValues).sort();
+  const sortedColumns = Array.from(columnValues).sort();
+  
+  // 构建新的表头
+  const newHeader = [rowField, ...sortedColumns];
+  
+  // 构建新的数据行
+  const newRows = sortedRows.map(rowVal => {
+    const row = [rowVal];
+    sortedColumns.forEach(colVal => {
+      row.push(pivotData[rowVal][colVal] || 0);
+    });
+    return row;
+  });
+  
+  // 更新数据
+  state.processedData = {
+    header: newHeader,
+    rows: newRows,
+    stats: {
+      total: newRows.length,
+      columns: newHeader.length
+    }
+  };
+  
+  renderTable(newHeader, newRows);
+  renderStats(state.processedData.stats);
+  
+  // 保存操作快照
+  saveOperationSnapshot(`透视表: 行=${rowField}, 列=${columnField}, 值=${valueField}`);
+  
+  showNotification(`透视表创建完成，${newRows.length} 行 × ${sortedColumns.length} 列`, 'success');
+}
+
 // 处理选中工作表
 function processSelectedSheetsData() {
   if (state.singleTable.selectedSheets.length === 0) {
@@ -2018,6 +2101,7 @@ $('#applyFilter').addEventListener('click', applyDataFilter);
 clearFilterBtn.addEventListener('click', clearDataFilter);
 $('#applySort').addEventListener('click', applyDataSort);
 $('#applyCleanup').addEventListener('click', applyDataCleanup);
+$('#createPivot').addEventListener('click', createPivotTable);
 
 // 撤销/重做按钮事件
 undoOperation.addEventListener('click', undoLastOperation);
