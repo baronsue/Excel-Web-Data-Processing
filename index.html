@@ -19,7 +19,24 @@
   </header>
 
   <main class="container">
+    <!-- 模式切换 -->
     <section class="card">
+      <h2>🎯 选择处理模式</h2>
+      <div class="mode-selector">
+        <button id="dualTableMode" class="mode-btn active" data-mode="dual">
+          <span class="mode-icon">🔗</span>
+          <span class="mode-title">双表合并</span>
+          <span class="mode-desc">合并两张不同的表格</span>
+        </button>
+        <button id="singleTableMode" class="mode-btn" data-mode="single">
+          <span class="mode-icon">📊</span>
+          <span class="mode-title">单表处理</span>
+          <span class="mode-desc">处理单张表格的多个工作表</span>
+        </button>
+      </div>
+    </section>
+
+    <section class="card" id="dualTableSection">
       <h2>📂 1. 上传数据文件</h2>
       <div class="upload-grid">
         <div>
@@ -57,6 +74,101 @@
       </div>
       <div class="row small">
         <label><input id="hasHeader" type="checkbox" checked /> 首行作为表头</label>
+      </div>
+    </section>
+
+    <!-- 单表处理模式 -->
+    <section class="card" id="singleTableSection" style="display: none;">
+      <h2>📂 上传单张表格</h2>
+      <div class="single-upload">
+        <label class="label">选择文件</label>
+        <div id="dropzoneSingle" class="dropzone">
+          <div class="dropzone-content">
+            <span class="dropzone-icon">📄</span>
+            <span class="dropzone-text">拖拽文件到此处或点击选择</span>
+          </div>
+          <input id="fileSingle" type="file" accept=".xlsx,.xls,.csv" title="选择单表文件" aria-label="选择单表文件" />
+        </div>
+        <div class="file-info" id="fileInfoSingle"></div>
+        <div class="row small">
+          <label><input id="hasHeaderSingle" type="checkbox" checked /> 首行作为表头</label>
+        </div>
+      </div>
+    </section>
+
+    <section class="card" id="singleTableSheets" style="display: none;">
+      <h2>📋 工作表管理</h2>
+      <div class="sheets-grid" id="sheetsGrid"></div>
+      <div class="row">
+        <button id="mergeAllSheets" class="btn primary">🔄 合并所有工作表</button>
+        <button id="processSelectedSheets" class="btn">⚙️ 处理选中工作表</button>
+        <button id="exportSelectedSheets" class="btn">📥 导出选中工作表</button>
+      </div>
+    </section>
+
+    <section class="card" id="singleTableOperations" style="display: none;">
+      <h2>🛠️ 数据处理操作</h2>
+      <div class="operations-grid">
+        <div class="operation-card">
+          <h3>🔍 数据筛选</h3>
+          <div class="operation-content">
+            <label class="label">筛选列</label>
+            <select id="filterColumn"></select>
+            <label class="label">筛选条件</label>
+            <select id="filterCondition">
+              <option value="equals">等于</option>
+              <option value="contains">包含</option>
+              <option value="greater">大于</option>
+              <option value="less">小于</option>
+              <option value="not_empty">非空</option>
+            </select>
+            <label class="label">筛选值</label>
+            <input id="filterValue" type="text" placeholder="输入筛选值" />
+            <button id="applyFilter" class="btn small">应用筛选</button>
+          </div>
+        </div>
+        
+        <div class="operation-card">
+          <h3>📊 数据排序</h3>
+          <div class="operation-content">
+            <label class="label">排序列</label>
+            <select id="sortColumn"></select>
+            <label class="label">排序方式</label>
+            <select id="sortOrder">
+              <option value="asc">升序</option>
+              <option value="desc">降序</option>
+            </select>
+            <button id="applySort" class="btn small">应用排序</button>
+          </div>
+        </div>
+        
+        <div class="operation-card">
+          <h3>🧹 数据清洗</h3>
+          <div class="operation-content">
+            <label class="label">清洗操作</label>
+            <select id="cleanupOperation">
+              <option value="remove_duplicates">去除重复行</option>
+              <option value="remove_empty_rows">删除空行</option>
+              <option value="trim_whitespace">去除首尾空格</option>
+              <option value="fill_empty">填充空值</option>
+            </select>
+            <input id="fillValue" type="text" placeholder="填充值" style="display: none;" />
+            <button id="applyCleanup" class="btn small">执行清洗</button>
+          </div>
+        </div>
+        
+        <div class="operation-card">
+          <h3>📈 数据透视</h3>
+          <div class="operation-content">
+            <label class="label">行字段</label>
+            <select id="pivotRows"></select>
+            <label class="label">列字段</label>
+            <select id="pivotColumns"></select>
+            <label class="label">值字段</label>
+            <select id="pivotValues"></select>
+            <button id="createPivot" class="btn small">创建透视表</button>
+          </div>
+        </div>
       </div>
     </section>
 

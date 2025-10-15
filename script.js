@@ -10,6 +10,10 @@ const state = {
   loading: false,
   errors: [],
   warnings: [],
+  // 单表处理状态
+  mode: 'dual', // 'dual' 或 'single'
+  singleTable: { file: null, workbook: null, sheets: [], selectedSheets: [] },
+  processedData: { header: [], rows: [], stats: null },
 };
 
 // DOM
@@ -42,6 +46,22 @@ const historySection = $('#historySection');
 const historyList = $('#historyList');
 const searchTable = $('#searchTable');
 const clearFilter = $('#clearFilter');
+
+// 单表处理相关DOM
+const dualTableMode = $('#dualTableMode');
+const singleTableMode = $('#singleTableMode');
+const dualTableSection = $('#dualTableSection');
+const singleTableSection = $('#singleTableSection');
+const singleTableSheets = $('#singleTableSheets');
+const singleTableOperations = $('#singleTableOperations');
+const fileSingle = $('#fileSingle');
+const dropzoneSingle = $('#dropzoneSingle');
+const fileInfoSingle = $('#fileInfoSingle');
+const hasHeaderSingle = $('#hasHeaderSingle');
+const sheetsGrid = $('#sheetsGrid');
+const mergeAllSheets = $('#mergeAllSheets');
+const processSelectedSheets = $('#processSelectedSheets');
+const exportSelectedSheets = $('#exportSelectedSheets');
 
 // 工具函数
 function readFileAsArrayBuffer(file) {
@@ -366,6 +386,24 @@ function createNotificationContainer() {
   return container;
 }
 
+// 模式切换
+function switchMode(mode) {
+  state.mode = mode;
+  
+  // 更新按钮状态
+  dualTableMode.classList.toggle('active', mode === 'dual');
+  singleTableMode.classList.toggle('active', mode === 'single');
+  
+  // 显示/隐藏相应区域
+  dualTableSection.style.display = mode === 'dual' ? 'block' : 'none';
+  singleTableSection.style.display = mode === 'single' ? 'block' : 'none';
+  singleTableSheets.style.display = mode === 'single' && state.singleTable.sheets.length > 0 ? 'block' : 'none';
+  singleTableOperations.style.display = mode === 'single' && state.singleTable.sheets.length > 0 ? 'block' : 'none';
+  
+  // 保存模式设置
+  localStorage.setItem('excel-join-mode', mode);
+}
+
 // 键盘快捷键
 function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (e) => {
@@ -373,7 +411,11 @@ function setupKeyboardShortcuts() {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
       e.preventDefault();
       if (!state.loading) {
-        runJoin.click();
+        if (state.mode === 'dual') {
+          runJoin.click();
+        } else {
+          mergeAllSheets.click();
+        }
       }
     }
     
@@ -586,6 +628,317 @@ async function parseFile(file) {
   } catch (error) {
     console.error('解析文件失败:', error);
     return null;
+  }
+}
+
+// 单表处理功能
+async function parseSingleTable(file) {
+  if (!file) return;
+  
+  const isCSV = inferIsCSV(file);
+  if (isCSV) {
+    const text = await readFileAsText(file);
+    const parsed = Papa.parse(text, { skipEmptyLines: true });
+    const rows = parsed.data;
+    const header = hasHeaderSingle.checked ? rows.shift() : rows[0].map((_, i) => `col_${i + 1}`);
+    
+    state.singleTable.file = file;
+    state.singleTable.sheets = [{ name: 'CSV', header, rows }];
+    state.singleTable.selectedSheets = ['CSV'];
+  } else {
+    const ab = await readFileAsArrayBuffer(file);
+    const wb = XLSX.read(ab, { type: 'array' });
+    const sheetNames = wb.SheetNames || [];
+    
+    state.singleTable.file = file;
+    state.singleTable.workbook = wb;
+    state.singleTable.sheets = [];
+    state.singleTable.selectedSheets = [];
+    
+    // 解析所有工作表
+    for (const sheetName of sheetNames) {
+      const ws = wb.Sheets[sheetName];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+      if (aoa && aoa.length > 0) {
+        const header = hasHeaderSingle.checked ? aoa[0] : aoa[0].map((_, i) => `col_${i + 1}`);
+        const rows = hasHeaderSingle.checked ? aoa.slice(1) : aoa.slice(0);
+        state.singleTable.sheets.push({ name: sheetName, header, rows });
+        state.singleTable.selectedSheets.push(sheetName);
+      }
+    }
+  }
+  
+  renderSheetsGrid();
+  showFileInfo(file, fileInfoSingle);
+}
+
+function renderSheetsGrid() {
+  if (state.singleTable.sheets.length === 0) {
+    sheetsGrid.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">暂无工作表数据</p>';
+    return;
+  }
+  
+  sheetsGrid.innerHTML = state.singleTable.sheets.map(sheet => `
+    <div class="sheet-card ${state.singleTable.selectedSheets.includes(sheet.name) ? 'selected' : ''}">
+      <div class="sheet-header">
+        <span class="sheet-name">${sheet.name}</span>
+        <input type="checkbox" class="sheet-checkbox" 
+               ${state.singleTable.selectedSheets.includes(sheet.name) ? 'checked' : ''}
+               onchange="toggleSheet('${sheet.name}')" />
+      </div>
+      <div class="sheet-info">
+        <span>行数: ${sheet.rows.length}</span>
+        <span>列数: ${sheet.header.length}</span>
+      </div>
+      <div class="sheet-preview">
+        <table>
+          <thead>
+            <tr>${sheet.header.slice(0, 5).map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+            ${sheet.rows.slice(0, 3).map(row => 
+              `<tr>${row.slice(0, 5).map(cell => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`
+            ).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleSheet(sheetName) {
+  const index = state.singleTable.selectedSheets.indexOf(sheetName);
+  if (index > -1) {
+    state.singleTable.selectedSheets.splice(index, 1);
+  } else {
+    state.singleTable.selectedSheets.push(sheetName);
+  }
+  renderSheetsGrid();
+}
+
+function mergeAllSheetsData() {
+  if (state.singleTable.selectedSheets.length === 0) {
+    showNotification('请选择至少一个工作表', 'warning');
+    return;
+  }
+  
+  showLoading('正在合并工作表...');
+  
+  try {
+    const selectedSheets = state.singleTable.sheets.filter(sheet => 
+      state.singleTable.selectedSheets.includes(sheet.name)
+    );
+    
+    if (selectedSheets.length === 0) {
+      showNotification('没有选中的工作表', 'warning');
+      return;
+    }
+    
+    // 获取所有列名
+    const allHeaders = new Set();
+    selectedSheets.forEach(sheet => {
+      sheet.header.forEach(h => allHeaders.add(h));
+    });
+    const mergedHeader = Array.from(allHeaders);
+    
+    // 合并数据
+    const mergedRows = [];
+    selectedSheets.forEach(sheet => {
+      sheet.rows.forEach(row => {
+        const rowObj = {};
+        sheet.header.forEach((h, i) => {
+          rowObj[h] = row[i];
+        });
+        const mergedRow = mergedHeader.map(h => rowObj[h] || '');
+        mergedRows.push(mergedRow);
+      });
+    });
+    
+    state.processedData = {
+      header: mergedHeader,
+      rows: mergedRows,
+      stats: {
+        total: mergedRows.length,
+        sheets: selectedSheets.length,
+        originalRows: selectedSheets.reduce((sum, sheet) => sum + sheet.rows.length, 0)
+      }
+    };
+    
+    renderTable(mergedHeader, mergedRows);
+    renderStats(state.processedData.stats);
+    showNotification(`成功合并 ${selectedSheets.length} 个工作表，共 ${mergedRows.length} 行数据`, 'success');
+    
+  } catch (error) {
+    console.error('合并失败:', error);
+    showNotification('合并失败: ' + error.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+// 数据筛选功能
+function applyDataFilter() {
+  const column = $('#filterColumn').value;
+  const condition = $('#filterCondition').value;
+  const value = $('#filterValue').value;
+  
+  if (!column) {
+    showNotification('请选择筛选列', 'warning');
+    return;
+  }
+  
+  if (state.processedData.rows.length === 0) {
+    showNotification('请先合并工作表', 'warning');
+    return;
+  }
+  
+  const columnIndex = state.processedData.header.indexOf(column);
+  if (columnIndex === -1) {
+    showNotification('找不到指定的列', 'error');
+    return;
+  }
+  
+  let filteredRows;
+  switch (condition) {
+    case 'equals':
+      filteredRows = state.processedData.rows.filter(row => String(row[columnIndex]) === value);
+      break;
+    case 'contains':
+      filteredRows = state.processedData.rows.filter(row => 
+        String(row[columnIndex]).toLowerCase().includes(value.toLowerCase())
+      );
+      break;
+    case 'greater':
+      filteredRows = state.processedData.rows.filter(row => 
+        Number(row[columnIndex]) > Number(value)
+      );
+      break;
+    case 'less':
+      filteredRows = state.processedData.rows.filter(row => 
+        Number(row[columnIndex]) < Number(value)
+      );
+      break;
+    case 'not_empty':
+      filteredRows = state.processedData.rows.filter(row => 
+        row[columnIndex] && String(row[columnIndex]).trim() !== ''
+      );
+      break;
+    default:
+      filteredRows = state.processedData.rows;
+  }
+  
+  state.processedData.rows = filteredRows;
+  state.processedData.stats.total = filteredRows.length;
+  
+  renderTable(state.processedData.header, filteredRows);
+  renderStats(state.processedData.stats);
+  showNotification(`筛选完成，剩余 ${filteredRows.length} 行数据`, 'success');
+}
+
+// 数据排序功能
+function applyDataSort() {
+  const column = $('#sortColumn').value;
+  const order = $('#sortOrder').value;
+  
+  if (!column) {
+    showNotification('请选择排序列', 'warning');
+    return;
+  }
+  
+  if (state.processedData.rows.length === 0) {
+    showNotification('请先合并工作表', 'warning');
+    return;
+  }
+  
+  const columnIndex = state.processedData.header.indexOf(column);
+  if (columnIndex === -1) {
+    showNotification('找不到指定的列', 'error');
+    return;
+  }
+  
+  const sortedRows = [...state.processedData.rows].sort((a, b) => {
+    const aVal = a[columnIndex];
+    const bVal = b[columnIndex];
+    
+    // 尝试数字比较
+    const aNum = Number(aVal);
+    const bNum = Number(bVal);
+    
+    if (!isNaN(aNum) && !isNaN(bNum)) {
+      return order === 'asc' ? aNum - bNum : bNum - aNum;
+    }
+    
+    // 字符串比较
+    const aStr = String(aVal).toLowerCase();
+    const bStr = String(bVal).toLowerCase();
+    return order === 'asc' ? aStr.localeCompare(bStr) : bStr.localeCompare(aStr);
+  });
+  
+  state.processedData.rows = sortedRows;
+  renderTable(state.processedData.header, sortedRows);
+  showNotification(`排序完成`, 'success');
+}
+
+// 数据清洗功能
+function applyDataCleanup() {
+  const operation = $('#cleanupOperation').value;
+  
+  if (state.processedData.rows.length === 0) {
+    showNotification('请先合并工作表', 'warning');
+    return;
+  }
+  
+  let cleanedRows = [...state.processedData.rows];
+  let removedCount = 0;
+  
+  switch (operation) {
+    case 'remove_duplicates':
+      const seen = new Set();
+      const originalLength = cleanedRows.length;
+      cleanedRows = cleanedRows.filter(row => {
+        const key = row.join('|');
+        if (seen.has(key)) {
+          removedCount++;
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
+      removedCount = originalLength - cleanedRows.length;
+      break;
+      
+    case 'remove_empty_rows':
+      const originalLength2 = cleanedRows.length;
+      cleanedRows = cleanedRows.filter(row => 
+        !row.every(cell => !cell || String(cell).trim() === '')
+      );
+      removedCount = originalLength2 - cleanedRows.length;
+      break;
+      
+    case 'trim_whitespace':
+      cleanedRows = cleanedRows.map(row => 
+        row.map(cell => typeof cell === 'string' ? cell.trim() : cell)
+      );
+      break;
+      
+    case 'fill_empty':
+      const fillValue = $('#fillValue').value;
+      cleanedRows = cleanedRows.map(row => 
+        row.map(cell => !cell || String(cell).trim() === '' ? fillValue : cell)
+      );
+      break;
+  }
+  
+  state.processedData.rows = cleanedRows;
+  state.processedData.stats.total = cleanedRows.length;
+  
+  renderTable(state.processedData.header, cleanedRows);
+  renderStats(state.processedData.stats);
+  
+  if (removedCount > 0) {
+    showNotification(`清洗完成，${operation === 'remove_duplicates' ? '去重' : '删除'}了 ${removedCount} 行数据`, 'success');
+  } else {
+    showNotification('清洗完成', 'success');
   }
 }
 
@@ -1117,6 +1470,61 @@ resetApp.addEventListener('click', () => {
   }
 });
 
+// 事件绑定
+dualTableMode.addEventListener('click', () => switchMode('dual'));
+singleTableMode.addEventListener('click', () => switchMode('single'));
+
+// 单表处理事件
+setupDropzone(dropzoneSingle, fileSingle, 'single');
+fileSingle.addEventListener('change', async (e) => {
+  state.singleTable.file = e.target.files[0] || null;
+  await parseSingleTable(state.singleTable.file);
+  if (state.singleTable.sheets.length > 0) {
+    singleTableSheets.style.display = 'block';
+    singleTableOperations.style.display = 'block';
+    updateOperationSelects();
+  }
+});
+
+hasHeaderSingle.addEventListener('change', async () => {
+  if (state.singleTable.file) {
+    await parseSingleTable(state.singleTable.file);
+    if (state.singleTable.sheets.length > 0) {
+      updateOperationSelects();
+    }
+  }
+});
+
+mergeAllSheets.addEventListener('click', mergeAllSheetsData);
+
+// 操作按钮事件
+$('#applyFilter').addEventListener('click', applyDataFilter);
+$('#applySort').addEventListener('click', applyDataSort);
+$('#applyCleanup').addEventListener('click', applyDataCleanup);
+
+// 清洗操作变化时显示/隐藏填充值输入
+$('#cleanupOperation').addEventListener('change', (e) => {
+  const fillValueInput = $('#fillValue');
+  fillValueInput.style.display = e.target.value === 'fill_empty' ? 'block' : 'none';
+});
+
+// 更新操作选择框
+function updateOperationSelects() {
+  if (state.processedData.header.length > 0) {
+    const header = state.processedData.header;
+    const options = header.map(h => `<option value="${h}">${h}</option>`).join('');
+    
+    $('#filterColumn').innerHTML = '<option value="">选择列...</option>' + options;
+    $('#sortColumn').innerHTML = '<option value="">选择列...</option>' + options;
+    $('#pivotRows').innerHTML = '<option value="">选择行字段...</option>' + options;
+    $('#pivotColumns').innerHTML = '<option value="">选择列字段...</option>' + options;
+    $('#pivotValues').innerHTML = '<option value="">选择值字段...</option>' + options;
+  }
+}
+
+// 全局函数
+window.toggleSheet = toggleSheet;
+
 // 初始化
 setupDropzone(dropzoneA, fileA, 'A');
 setupDropzone(dropzoneB, fileB, 'B');
@@ -1124,6 +1532,11 @@ setupKeyboardShortcuts();
 restoreSettings();
 loadHistory();
 renderTemplates();
+
+// 恢复模式设置
+const savedMode = localStorage.getItem('excel-join-mode') || 'dual';
+switchMode(savedMode);
+
 state.join.type = joinType.value;
 state.join.nullFill = nullFill.value;
 renderKeyChips();

@@ -656,9 +656,192 @@ tr:hover td {
   opacity: 0.7;
 }
 
+/* 模式选择器 */
+.mode-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.mode-btn {
+  background: rgba(255, 255, 255, 0.3);
+  border: 2px solid var(--glass-border);
+  border-radius: 16px;
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.mode-btn:hover {
+  border-color: var(--primary-light);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(147, 112, 219, 0.2);
+}
+
+.mode-btn.active {
+  border-color: var(--primary);
+  background: rgba(147, 112, 219, 0.1);
+  box-shadow: 0 4px 16px rgba(147, 112, 219, 0.2);
+}
+
+.mode-icon {
+  font-size: 32px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.mode-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.mode-desc {
+  font-size: 14px;
+  color: var(--text-muted);
+  display: block;
+}
+
+/* 单表上传 */
+.single-upload {
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* 工作表网格 */
+.sheets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.sheet-card {
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.2s ease;
+}
+
+.sheet-card:hover {
+  background: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+.sheet-card.selected {
+  border-color: var(--primary);
+  background: rgba(147, 112, 219, 0.1);
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.sheet-name {
+  font-weight: 600;
+  color: var(--primary-dark);
+  font-size: 16px;
+}
+
+.sheet-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+}
+
+.sheet-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.sheet-preview {
+  margin-top: 12px;
+  max-height: 120px;
+  overflow: auto;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.sheet-preview table {
+  width: 100%;
+  font-size: 11px;
+}
+
+.sheet-preview th,
+.sheet-preview td {
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(147, 112, 219, 0.1);
+}
+
+/* 操作网格 */
+.operations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.operation-card {
+  background: rgba(255, 255, 255, 0.3);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.operation-card h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  color: var(--primary-dark);
+}
+
+.operation-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.operation-content .label {
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.operation-content select,
+.operation-content input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.5);
+  color: var(--text);
+}
+
+.operation-content .btn {
+  margin-top: 8px;
+  align-self: flex-start;
+}
+
 @media (max-width: 860px) {
   .upload-grid, .grid-2 { grid-template-columns: 1fr; }
   .data-stats-grid { grid-template-columns: 1fr; }
+  .mode-selector { grid-template-columns: 1fr; }
+  .sheets-grid { grid-template-columns: 1fr; }
+  .operations-grid { grid-template-columns: 1fr; }
   .notification-container {
     left: 20px;
     right: 20px;
