@@ -1,16 +1,20 @@
 :root {
   --bg: linear-gradient(135deg, #f5e6ff 0%, #e6d9ff 50%, #d9ccff 100%);
-  --glass-bg: rgba(255, 255, 255, 0.25);
-  --glass-border: rgba(255, 255, 255, 0.4);
-  --glass-shadow: 0 8px 32px 0 rgba(147, 112, 219, 0.15);
+  --glass-bg: rgba(255, 255, 255, 0.15);
+  --glass-bg-hover: rgba(255, 255, 255, 0.22);
+  --glass-border: rgba(255, 255, 255, 0.5);
+  --glass-border-top: rgba(255, 255, 255, 0.8);
+  --glass-shadow: 0 8px 32px 0 rgba(147, 112, 219, 0.12);
+  --glass-shadow-hover: 0 16px 48px 0 rgba(147, 112, 219, 0.18);
+  --glass-inner-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6);
   --text: #3d2661;
   --text-muted: #7b68a1;
   --primary: #9370db;
   --primary-light: #b19cd9;
   --primary-dark: #7a5cb5;
   --accent: #ba8fd8;
-  --chip-bg: rgba(255, 255, 255, 0.35);
-  --chip-active: rgba(147, 112, 219, 0.3);
+  --chip-bg: rgba(255, 255, 255, 0.28);
+  --chip-active: rgba(147, 112, 219, 0.35);
 }
 
 * { box-sizing: border-box; }
@@ -50,10 +54,21 @@ body::before {
   justify-content: space-between;
   padding: 20px 24px;
   background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   border-bottom: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
+  border-top: 1px solid var(--glass-border-top);
+  box-shadow: var(--glass-shadow), var(--glass-inner-shadow);
+  position: relative;
+}
+.app-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.8), transparent);
 }
 .app-header h1 { 
   margin: 0; 
@@ -70,18 +85,36 @@ body::before {
 
 .card {
   background: var(--glass-bg);
-  backdrop-filter: blur(16px) saturate(180%);
-  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
   border: 1px solid var(--glass-border);
+  border-top: 1px solid var(--glass-border-top);
   border-radius: 20px;
   padding: 24px;
   margin-bottom: 20px;
-  box-shadow: var(--glass-shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: var(--glass-shadow), var(--glass-inner-shadow);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.6s;
+}
+.card:hover::before {
+  left: 100%;
 }
 .card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 40px 0 rgba(147, 112, 219, 0.2);
+  transform: translateY(-4px);
+  background: var(--glass-bg-hover);
+  box-shadow: var(--glass-shadow-hover), var(--glass-inner-shadow);
+  border-color: rgba(255, 255, 255, 0.6);
 }
 .card h2 { 
   margin: 0 0 16px; 
@@ -196,79 +229,118 @@ body::before {
   font-size: 14px;
 }
 input[type="file"], select, input[type="text"] {
-  background: rgba(255, 255, 255, 0.5);
+  background: rgba(255, 255, 255, 0.35);
   color: var(--text);
   border: 1px solid var(--glass-border);
+  border-top: 1px solid var(--glass-border-top);
   border-radius: 12px;
   padding: 10px 14px;
-  transition: all 0.2s ease;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  box-shadow: 0 2px 6px rgba(147, 112, 219, 0.06), inset 0 1px 1px rgba(255, 255, 255, 0.5);
 }
 input[type="file"]:hover, select:hover, input[type="text"]:hover {
-  border-color: var(--primary-light);
-  box-shadow: 0 4px 12px rgba(147, 112, 219, 0.15);
+  background: rgba(255, 255, 255, 0.45);
+  border-color: rgba(255, 255, 255, 0.7);
+  box-shadow: 0 4px 12px rgba(147, 112, 219, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.5);
 }
 input[type="file"]:focus, select:focus, input[type="text"]:focus {
   outline: none;
+  background: rgba(255, 255, 255, 0.5);
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(147, 112, 219, 0.2);
+  box-shadow: 0 0 0 3px rgba(147, 112, 219, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.6);
 }
 
 .chips { display: flex; flex-wrap: wrap; gap: 10px; min-height: 48px; align-items: center; }
 .chip {
   background: var(--chip-bg);
   border: 1px solid var(--glass-border);
+  border-top: 1px solid var(--glass-border-top);
   border-radius: 999px;
   padding: 8px 16px;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.25s ease;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 2px 8px rgba(147, 112, 219, 0.1);
+  transition: all 0.3s ease;
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  box-shadow: 0 2px 8px rgba(147, 112, 219, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+.chip::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent);
+  pointer-events: none;
 }
 .chip:hover {
-  background: rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.4);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(147, 112, 219, 0.2);
+  box-shadow: 0 4px 14px rgba(147, 112, 219, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.7);
 }
 .chip.active { 
-  background: var(--chip-active);
+  background: linear-gradient(135deg, var(--primary-light), var(--accent));
   border-color: var(--primary);
-  color: var(--primary-dark);
+  color: white;
   font-weight: 600;
-  box-shadow: 0 4px 16px rgba(147, 112, 219, 0.25);
+  box-shadow: 0 4px 16px rgba(147, 112, 219, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+.chip.active::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent);
 }
 
 .btn {
-  background: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.3);
   color: var(--text);
   border: 1px solid var(--glass-border);
+  border-top: 1px solid var(--glass-border-top);
   padding: 10px 20px;
   border-radius: 12px;
   cursor: pointer;
   font-weight: 500;
   transition: all 0.3s ease;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 2px 8px rgba(147, 112, 219, 0.1);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  box-shadow: 0 2px 8px rgba(147, 112, 219, 0.08), var(--glass-inner-shadow);
+  position: relative;
+  overflow: hidden;
+}
+.btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 50%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.3), transparent);
+  pointer-events: none;
 }
 .btn:hover { 
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(147, 112, 219, 0.2);
-  border-color: var(--primary-light);
+  background: rgba(255, 255, 255, 0.4);
+  box-shadow: 0 6px 16px rgba(147, 112, 219, 0.15), var(--glass-inner-shadow);
+  border-color: rgba(255, 255, 255, 0.7);
 }
 .btn.primary { 
   background: linear-gradient(135deg, var(--primary), var(--accent));
   color: white;
   border-color: var(--primary);
   font-weight: 600;
-  box-shadow: 0 4px 16px rgba(147, 112, 219, 0.3);
+  box-shadow: 0 4px 16px rgba(147, 112, 219, 0.25), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+.btn.primary::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.4), transparent);
 }
 .btn.primary:hover {
-  box-shadow: 0 6px 20px rgba(147, 112, 219, 0.4);
+  box-shadow: 0 6px 24px rgba(147, 112, 219, 0.35), inset 0 1px 1px rgba(255, 255, 255, 0.3);
   transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.1);
 }
 .btn.ghost { 
   background: transparent;
@@ -287,11 +359,13 @@ input[type="file"]:focus, select:focus, input[type="text"]:focus {
 .table-wrap { 
   overflow: auto; 
   max-height: 65vh; 
-  border: 1px solid var(--glass-border); 
+  border: 1px solid var(--glass-border);
+  border-top: 1px solid var(--glass-border-top);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.3);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  box-shadow: 0 4px 16px rgba(147, 112, 219, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.5);
 }
 table { 
   width: 100%; 
@@ -339,19 +413,24 @@ tr:hover td {
 
 .dropzone {
   position: relative;
-  border: 2px dashed var(--glass-border);
+  border: 2px dashed rgba(255, 255, 255, 0.5);
   border-radius: 16px;
   padding: 32px 20px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.4s ease;
   margin-top: 8px;
+  box-shadow: inset 0 2px 8px rgba(147, 112, 219, 0.05), 0 4px 12px rgba(147, 112, 219, 0.06);
 }
 .dropzone:hover, .dropzone.dragover {
   border-color: var(--primary);
-  background: rgba(147, 112, 219, 0.1);
+  border-style: solid;
+  background: rgba(147, 112, 219, 0.12);
   transform: scale(1.02);
+  box-shadow: inset 0 2px 8px rgba(147, 112, 219, 0.08), 0 8px 20px rgba(147, 112, 219, 0.12);
 }
 .dropzone input[type="file"] {
   position: absolute;
