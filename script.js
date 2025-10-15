@@ -1339,6 +1339,9 @@ function createPivotTable() {
   renderTable(newHeader, newRows);
   renderStats(state.processedData.stats);
   
+  // 更新操作选择框（透视表会改变列结构）
+  updateOperationSelects();
+  
   // 保存操作快照
   saveOperationSnapshot(`透视表: 行=${rowField}, 列=${columnField}, 值=${valueField}`);
   
