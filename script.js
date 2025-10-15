@@ -841,11 +841,23 @@ function applyDataFilter() {
   let filteredRows;
   switch (condition) {
     case 'equals':
-      filteredRows = state.processedData.rows.filter(row => String(row[columnIndex]) === value);
+      filteredRows = state.processedData.rows.filter(row => 
+        String(row[columnIndex]).toLowerCase() === value.toLowerCase()
+      );
       break;
     case 'contains':
       filteredRows = state.processedData.rows.filter(row => 
         String(row[columnIndex]).toLowerCase().includes(value.toLowerCase())
+      );
+      break;
+    case 'starts_with':
+      filteredRows = state.processedData.rows.filter(row => 
+        String(row[columnIndex]).toLowerCase().startsWith(value.toLowerCase())
+      );
+      break;
+    case 'ends_with':
+      filteredRows = state.processedData.rows.filter(row => 
+        String(row[columnIndex]).toLowerCase().endsWith(value.toLowerCase())
       );
       break;
     case 'greater':
