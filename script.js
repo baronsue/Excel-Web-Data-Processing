@@ -69,7 +69,6 @@ const singleTableMode = $('#singleTableMode');
 const dualTableSection = $('#dualTableSection');
 const singleTableSection = $('#singleTableSection');
 const singleTableSheets = $('#singleTableSheets');
-const singleTableOperations = $('#singleTableOperations');
 const fileSingle = $('#fileSingle');
 const dropzoneSingle = $('#dropzoneSingle');
 const fileInfoSingle = $('#fileInfoSingle');
@@ -1694,6 +1693,9 @@ fileA.addEventListener('change', async (e) => {
   renderKeyChips();
   renderDataStats();
   persistSettings();
+  
+  // 显示数据操作模块（即使没有合并数据）
+  dataOperations.style.display = 'block';
 });
 
 fileB.addEventListener('change', async (e) => {
@@ -1705,6 +1707,9 @@ fileB.addEventListener('change', async (e) => {
   renderKeyChips();
   renderDataStats();
   persistSettings();
+  
+  // 显示数据操作模块（即使没有合并数据）
+  dataOperations.style.display = 'block';
 });
 
 sheetA.addEventListener('change', () => {
@@ -1981,7 +1986,8 @@ fileSingle.addEventListener('change', async (e) => {
   await parseSingleTable(state.singleTable.file);
   if (state.singleTable.sheets.length > 0) {
     singleTableSheets.style.display = 'block';
-    singleTableOperations.style.display = 'block';
+    // 显示数据操作模块
+    dataOperations.style.display = 'block';
     updateOperationSelects();
   }
 });
