@@ -699,7 +699,7 @@ async function parseSingleTable(file) {
     
     state.singleTable.file = file;
     state.singleTable.sheets = [{ name: 'CSV', header, rows }];
-    state.singleTable.selectedSheets = ['CSV'];
+    state.singleTable.selectedSheets = []; // 默认不勾选
   } else {
     const ab = await readFileAsArrayBuffer(file);
     const wb = XLSX.read(ab, { type: 'array' });
@@ -718,7 +718,7 @@ async function parseSingleTable(file) {
         const header = hasHeaderSingle.checked ? aoa[0] : aoa[0].map((_, i) => `col_${i + 1}`);
         const rows = hasHeaderSingle.checked ? aoa.slice(1) : aoa.slice(0);
         state.singleTable.sheets.push({ name: sheetName, header, rows });
-        state.singleTable.selectedSheets.push(sheetName);
+        // 不再自动添加到 selectedSheets，让用户手动选择
       }
     }
   }
