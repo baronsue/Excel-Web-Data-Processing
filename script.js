@@ -752,6 +752,8 @@ function toggleSheet(sheetName) {
     state.singleTable.selectedSheets.push(sheetName);
   }
   renderSheetsGrid();
+  updateOperationSelects(); // 更新操作选择框
+  renderDataStats(); // 更新统计信息
 }
 
 function mergeAllSheetsData() {
@@ -977,6 +979,112 @@ function applyDataCleanup() {
     showNotification(`清洗完成，${operation === 'remove_duplicates' ? '去重' : '删除'}了 ${removedCount} 行数据`, 'success');
   } else {
     showNotification('清洗完成', 'success');
+  }
+}
+
+// 处理选中工作表
+function processSelectedSheetsData() {
+  if (state.singleTable.selectedSheets.length === 0) {
+    showNotification('请选择至少一个工作表', 'warning');
+    return;
+  }
+  
+  showLoading('正在处理选中工作表...');
+  
+  try {
+    const selectedSheets = state.singleTable.sheets.filter(sheet => 
+      state.singleTable.selectedSheets.includes(sheet.name)
+    );
+    
+    if (selectedSheets.length === 0) {
+      showNotification('没有选中的工作表', 'warning');
+      return;
+    }
+    
+    // 获取所有列名
+    const allHeaders = new Set();
+    selectedSheets.forEach(sheet => {
+      sheet.header.forEach(h => allHeaders.add(h));
+    });
+    const mergedHeader = Array.from(allHeaders);
+    
+    // 合并数据
+    const mergedRows = [];
+    selectedSheets.forEach(sheet => {
+      sheet.rows.forEach(row => {
+        const rowObj = {};
+        sheet.header.forEach((h, i) => {
+          rowObj[h] = row[i];
+        });
+        const mergedRow = mergedHeader.map(h => rowObj[h] || '');
+        mergedRows.push(mergedRow);
+      });
+    });
+    
+    state.processedData = {
+      header: mergedHeader,
+      rows: mergedRows,
+      stats: {
+        total: mergedRows.length,
+        sheets: selectedSheets.length,
+        originalRows: selectedSheets.reduce((sum, sheet) => sum + sheet.rows.length, 0)
+      }
+    };
+    
+    renderTable(mergedHeader, mergedRows);
+    renderStats(state.processedData.stats);
+    updateOperationSelects();
+    showNotification(`成功处理 ${selectedSheets.length} 个工作表，共 ${mergedRows.length} 行数据`, 'success');
+    
+  } catch (error) {
+    console.error('处理失败:', error);
+    showNotification('处理失败: ' + error.message, 'error');
+  } finally {
+    hideLoading();
+  }
+}
+
+// 导出选中工作表
+function exportSelectedSheetsData() {
+  if (state.singleTable.selectedSheets.length === 0) {
+    showNotification('请选择至少一个工作表', 'warning');
+    return;
+  }
+  
+  try {
+    const selectedSheets = state.singleTable.sheets.filter(sheet => 
+      state.singleTable.selectedSheets.includes(sheet.name)
+    );
+    
+    if (selectedSheets.length === 0) {
+      showNotification('没有选中的工作表', 'warning');
+      return;
+    }
+    
+    // 创建新的工作簿
+    const wb = XLSX.utils.book_new();
+    
+    // 为每个选中的工作表创建一个工作表
+    selectedSheets.forEach(sheet => {
+      const wsData = [sheet.header, ...sheet.rows];
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+    });
+    
+    // 如果有处理后的数据，也添加一个合并后的工作表
+    if (state.processedData.rows.length > 0) {
+      const mergedWsData = [state.processedData.header, ...state.processedData.rows];
+      const mergedWs = XLSX.utils.aoa_to_sheet(mergedWsData);
+      XLSX.utils.book_append_sheet(wb, mergedWs, '合并结果');
+    }
+    
+    const fileName = `工作表导出_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+    showNotification(`成功导出 ${selectedSheets.length} 个工作表`, 'success');
+    
+  } catch (error) {
+    console.error('导出失败:', error);
+    showNotification('导出失败: ' + error.message, 'error');
   }
 }
 
@@ -1563,6 +1671,8 @@ hasHeaderSingle.addEventListener('change', async () => {
 });
 
 mergeAllSheets.addEventListener('click', mergeAllSheetsData);
+processSelectedSheets.addEventListener('click', processSelectedSheetsData);
+exportSelectedSheets.addEventListener('click', exportSelectedSheetsData);
 
 // 操作按钮事件
 $('#applyFilter').addEventListener('click', applyDataFilter);
@@ -1577,8 +1687,23 @@ $('#cleanupOperation').addEventListener('change', (e) => {
 
 // 更新操作选择框
 function updateOperationSelects() {
+  let header = [];
+  
+  // 优先使用处理后的数据
   if (state.processedData.header.length > 0) {
-    const header = state.processedData.header;
+    header = state.processedData.header;
+  } else if (state.singleTable.selectedSheets.length > 0) {
+    // 如果没有处理后的数据，从选中的工作表中获取所有列名
+    const allHeaders = new Set();
+    state.singleTable.sheets
+      .filter(sheet => state.singleTable.selectedSheets.includes(sheet.name))
+      .forEach(sheet => {
+        sheet.header.forEach(h => allHeaders.add(h));
+      });
+    header = Array.from(allHeaders);
+  }
+  
+  if (header.length > 0) {
     const options = header.map(h => `<option value="${h}">${h}</option>`).join('');
     
     $('#filterColumn').innerHTML = '<option value="">选择列...</option>' + options;
