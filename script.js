@@ -7,6 +7,9 @@ const state = {
   join: { type: 'inner', keysA: [], keysB: [], nullFill: '' },
   result: { header: [], rows: [], stats: null },
   history: [],
+  loading: false,
+  errors: [],
+  warnings: [],
 };
 
 // DOM
@@ -287,6 +290,303 @@ function renderDataStats() {
   }
   
   dataStats.innerHTML = cards.join('');
+  
+  // 显示验证结果
+  validateData();
+  showValidationResults();
+}
+
+// 显示加载状态
+function showLoading(message = '处理中...') {
+  state.loading = true;
+  const loadingDiv = document.getElementById('loadingIndicator') || createLoadingIndicator();
+  loadingDiv.innerHTML = `
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">${message}</div>
+    </div>
+  `;
+  loadingDiv.style.display = 'flex';
+}
+
+function hideLoading() {
+  state.loading = false;
+  const loadingDiv = document.getElementById('loadingIndicator');
+  if (loadingDiv) {
+    loadingDiv.style.display = 'none';
+  }
+}
+
+function createLoadingIndicator() {
+  const loadingDiv = document.createElement('div');
+  loadingDiv.id = 'loadingIndicator';
+  loadingDiv.className = 'loading-indicator';
+  document.body.appendChild(loadingDiv);
+  return loadingDiv;
+}
+
+// 通知系统
+function showNotification(message, type = 'info', duration = 3000) {
+  const notification = document.createElement('div');
+  notification.className = `notification notification-${type}`;
+  notification.innerHTML = `
+    <div class="notification-content">
+      <span class="notification-icon">${getNotificationIcon(type)}</span>
+      <span class="notification-message">${message}</span>
+      <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+    </div>
+  `;
+  
+  const container = document.getElementById('notificationContainer') || createNotificationContainer();
+  container.appendChild(notification);
+  
+  // 自动移除
+  setTimeout(() => {
+    if (notification.parentElement) {
+      notification.remove();
+    }
+  }, duration);
+}
+
+function getNotificationIcon(type) {
+  const icons = {
+    success: '✅',
+    error: '❌',
+    warning: '⚠️',
+    info: 'ℹ️'
+  };
+  return icons[type] || icons.info;
+}
+
+function createNotificationContainer() {
+  const container = document.createElement('div');
+  container.id = 'notificationContainer';
+  container.className = 'notification-container';
+  document.body.appendChild(container);
+  return container;
+}
+
+// 键盘快捷键
+function setupKeyboardShortcuts() {
+  document.addEventListener('keydown', (e) => {
+    // Ctrl/Cmd + Enter: 执行合并
+    if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      if (!state.loading) {
+        runJoin.click();
+      }
+    }
+    
+    // Ctrl/Cmd + R: 重置 (需要确认)
+    if ((e.ctrlKey || e.metaKey) && e.key === 'r') {
+      e.preventDefault();
+      if (confirm('确定要重置所有数据吗？')) {
+        resetApp.click();
+      }
+    }
+    
+    // Ctrl/Cmd + S: 保存到历史
+    if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+      e.preventDefault();
+      if (state.result.rows.length > 0) {
+        saveHistory.click();
+      }
+    }
+    
+    // Escape: 清除搜索
+    if (e.key === 'Escape') {
+      if (searchTable.value) {
+        searchTable.value = '';
+        clearFilter.click();
+      }
+    }
+  });
+}
+
+// 模板系统
+function saveAsTemplate() {
+  if (state.join.keysA.length === 0 || state.join.keysB.length === 0) {
+    showNotification('请先选择键列', 'warning');
+    return;
+  }
+  
+  const templateName = prompt('请输入模板名称：');
+  if (!templateName) return;
+  
+  const template = {
+    id: Date.now(),
+    name: templateName,
+    timestamp: new Date().toLocaleString('zh-CN'),
+    joinType: state.join.type,
+    keysA: state.join.keysA,
+    keysB: state.join.keysB,
+    nullFill: state.join.nullFill,
+    hasHeader: hasHeader.checked,
+  };
+  
+  const templates = JSON.parse(localStorage.getItem('join-templates') || '[]');
+  templates.unshift(template);
+  if (templates.length > 10) templates.splice(10);
+  
+  localStorage.setItem('join-templates', JSON.stringify(templates));
+  showNotification(`模板 "${templateName}" 已保存`, 'success');
+  renderTemplates();
+}
+
+function loadTemplate(template) {
+  joinType.value = template.joinType;
+  state.join.type = template.joinType;
+  nullFill.value = template.nullFill;
+  state.join.nullFill = template.nullFill;
+  hasHeader.checked = template.hasHeader;
+  
+  // 如果当前表格有相同的列名，则自动选择
+  const availableKeysA = state.tableA.header.filter(h => template.keysA.includes(h));
+  const availableKeysB = state.tableB.header.filter(h => template.keysB.includes(h));
+  
+  if (availableKeysA.length > 0 && availableKeysB.length > 0) {
+    state.join.keysA = availableKeysA;
+    state.join.keysB = availableKeysB;
+    renderKeyChips();
+    showNotification(`已应用模板 "${template.name}"`, 'success');
+  } else {
+    showNotification('当前表格列名与模板不匹配', 'warning');
+  }
+  
+  persistSettings();
+}
+
+function renderTemplates() {
+  const templates = JSON.parse(localStorage.getItem('join-templates') || '[]');
+  const container = document.getElementById('templatesList');
+  if (!container) return;
+  
+  if (templates.length === 0) {
+    container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">暂无保存的模板</p>';
+    return;
+  }
+  
+  container.innerHTML = templates.map(template => `
+    <div class="template-item">
+      <div class="template-info">
+        <div class="template-name">${template.name}</div>
+        <div class="template-meta">
+          ${template.joinType.toUpperCase()} JOIN | 
+          ${template.keysA.length} 键列 | 
+          ${template.timestamp}
+        </div>
+      </div>
+      <div class="template-actions">
+        <button class="btn small" onclick="loadTemplate(${JSON.stringify(template).replace(/"/g, '&quot;')})">应用</button>
+        <button class="btn small ghost" onclick="deleteTemplate(${template.id})">删除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function deleteTemplate(id) {
+  const templates = JSON.parse(localStorage.getItem('join-templates') || '[]');
+  const filtered = templates.filter(t => t.id !== id);
+  localStorage.setItem('join-templates', JSON.stringify(filtered));
+  renderTemplates();
+  showNotification('模板已删除', 'info');
+}
+
+// 批量操作
+function batchProcess() {
+  const fileInput = document.createElement('input');
+  fileInput.type = 'file';
+  fileInput.multiple = true;
+  fileInput.accept = '.xlsx,.xls,.csv';
+  
+  fileInput.onchange = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length < 2) {
+      showNotification('请选择至少2个文件进行批量处理', 'warning');
+      return;
+    }
+    
+    showLoading(`正在处理 ${files.length} 个文件...`);
+    
+    try {
+      const results = [];
+      for (let i = 0; i < files.length - 1; i++) {
+        for (let j = i + 1; j < files.length; j++) {
+          const fileA = files[i];
+          const fileB = files[j];
+          
+          // 解析文件
+          const tableA = await parseFile(fileA);
+          const tableB = await parseFile(fileB);
+          
+          if (tableA && tableB) {
+            // 自动检测键列（选择第一个列作为键列）
+            const keysA = [tableA.header[0]];
+            const keysB = [tableB.header[0]];
+            
+            const result = joinRows({
+              headerA: tableA.header,
+              headerB: tableB.header,
+              rowsA: tableA.rows,
+              rowsB: tableB.rows,
+              keysA,
+              keysB,
+              type: 'inner',
+              nullFill: '',
+            });
+            
+            results.push({
+              fileA: fileA.name,
+              fileB: fileB.name,
+              result: result,
+            });
+          }
+        }
+      }
+      
+      // 导出批量结果
+      const wb = XLSX.utils.book_new();
+      results.forEach((item, index) => {
+        const ws = XLSX.utils.aoa_to_sheet([item.result.header, ...item.result.rows]);
+        XLSX.utils.book_append_sheet(wb, ws, `合并${index + 1}_${item.fileA}_${item.fileB}`);
+      });
+      
+      XLSX.writeFile(wb, `批量合并结果_${new Date().toISOString().slice(0, 10)}.xlsx`);
+      showNotification(`批量处理完成！共生成 ${results.length} 个合并结果`, 'success');
+      
+    } catch (error) {
+      console.error('批量处理失败:', error);
+      showNotification('批量处理失败: ' + error.message, 'error');
+    } finally {
+      hideLoading();
+    }
+  };
+  
+  fileInput.click();
+}
+
+async function parseFile(file) {
+  try {
+    const isCSV = file.name.toLowerCase().endsWith('.csv');
+    if (isCSV) {
+      const text = await readFileAsText(file);
+      const parsed = Papa.parse(text, { skipEmptyLines: true });
+      const rows = parsed.data;
+      const header = rows.shift();
+      return { header, rows };
+    } else {
+      const ab = await readFileAsArrayBuffer(file);
+      const wb = XLSX.read(ab, { type: 'array' });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const aoa = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false });
+      const header = aoa[0];
+      const rows = aoa.slice(1);
+      return { header, rows };
+    }
+  } catch (error) {
+    console.error('解析文件失败:', error);
+    return null;
+  }
 }
 
 function persistSettings() {
@@ -320,6 +620,122 @@ function cleanInvalidKeys() {
   state.join.keysA = state.join.keysA.filter(key => state.tableA.header.includes(key));
   // 清理右表键列中不存在的列名
   state.join.keysB = state.join.keysB.filter(key => state.tableB.header.includes(key));
+}
+
+// 数据验证
+function validateData() {
+  state.errors = [];
+  state.warnings = [];
+  
+  // 检查文件上传
+  if (!state.tableA.file) {
+    state.errors.push('请上传左表文件');
+  }
+  if (!state.tableB.file) {
+    state.errors.push('请上传右表文件');
+  }
+  
+  // 检查数据完整性
+  if (state.tableA.rows.length === 0) {
+    state.warnings.push('左表没有数据行');
+  }
+  if (state.tableB.rows.length === 0) {
+    state.warnings.push('右表没有数据行');
+  }
+  
+  // 检查键列选择
+  if (state.join.keysA.length === 0) {
+    state.errors.push('请选择左表键列');
+  }
+  if (state.join.keysB.length === 0) {
+    state.errors.push('请选择右表键列');
+  }
+  if (state.join.keysA.length !== state.join.keysB.length) {
+    state.errors.push(`键列数量不匹配：左表 ${state.join.keysA.length} 个，右表 ${state.join.keysB.length} 个`);
+  }
+  
+  // 检查数据质量
+  if (state.tableA.rows.length > 0) {
+    const emptyRowsA = state.tableA.rows.filter(row => row.every(cell => !cell || cell.toString().trim() === '')).length;
+    if (emptyRowsA > 0) {
+      state.warnings.push(`左表有 ${emptyRowsA} 行空数据`);
+    }
+  }
+  
+  if (state.tableB.rows.length > 0) {
+    const emptyRowsB = state.tableB.rows.filter(row => row.every(cell => !cell || cell.toString().trim() === '')).length;
+    if (emptyRowsB > 0) {
+      state.warnings.push(`右表有 ${emptyRowsB} 行空数据`);
+    }
+  }
+  
+  // 检查键列数据质量
+  if (state.join.keysA.length > 0 && state.tableA.rows.length > 0) {
+    const keyIndexA = state.join.keysA.map(key => state.tableA.header.indexOf(key));
+    const nullKeysA = state.tableA.rows.filter(row => 
+      keyIndexA.some(idx => !row[idx] || row[idx].toString().trim() === '')
+    ).length;
+    if (nullKeysA > 0) {
+      state.warnings.push(`左表键列有 ${nullKeysA} 行空值`);
+    }
+  }
+  
+  if (state.join.keysB.length > 0 && state.tableB.rows.length > 0) {
+    const keyIndexB = state.join.keysB.map(key => state.tableB.header.indexOf(key));
+    const nullKeysB = state.tableB.rows.filter(row => 
+      keyIndexB.some(idx => !row[idx] || row[idx].toString().trim() === '')
+    ).length;
+    if (nullKeysB > 0) {
+      state.warnings.push(`右表键列有 ${nullKeysB} 行空值`);
+    }
+  }
+  
+  return state.errors.length === 0;
+}
+
+// 显示验证结果
+function showValidationResults() {
+  const container = document.getElementById('validationResults') || createValidationContainer();
+  container.innerHTML = '';
+  
+  if (state.errors.length > 0) {
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'validation-errors';
+    errorDiv.innerHTML = `
+      <h4>❌ 错误 (${state.errors.length})</h4>
+      <ul>${state.errors.map(err => `<li>${err}</li>`).join('')}</ul>
+    `;
+    container.appendChild(errorDiv);
+  }
+  
+  if (state.warnings.length > 0) {
+    const warningDiv = document.createElement('div');
+    warningDiv.className = 'validation-warnings';
+    warningDiv.innerHTML = `
+      <h4>⚠️ 警告 (${state.warnings.length})</h4>
+      <ul>${state.warnings.map(warn => `<li>${warn}</li>`).join('')}</ul>
+    `;
+    container.appendChild(warningDiv);
+  }
+  
+  if (state.errors.length === 0 && state.warnings.length === 0) {
+    const successDiv = document.createElement('div');
+    successDiv.className = 'validation-success';
+    successDiv.innerHTML = '<h4>✅ 数据验证通过</h4>';
+    container.appendChild(successDiv);
+  }
+}
+
+function createValidationContainer() {
+  const container = document.createElement('div');
+  container.id = 'validationResults';
+  container.className = 'validation-container';
+  
+  // 插入到数据统计卡片中
+  const dataStatsCard = document.querySelector('#dataStats').parentElement;
+  dataStatsCard.appendChild(container);
+  
+  return container;
 }
 
 // 解析
@@ -505,37 +921,44 @@ function toggleKey(arr, col) {
   if (i >= 0) arr.splice(i, 1); else arr.push(col);
 }
 
-runJoin.addEventListener('click', () => {
-  if (state.tableA.header.length === 0 || state.tableB.header.length === 0) {
-    alert('请先上传左右两张表');
+runJoin.addEventListener('click', async () => {
+  // 数据验证
+  if (!validateData()) {
+    showValidationResults();
     return;
   }
 
-  if (state.join.keysA.length === 0 || state.join.keysB.length === 0) {
-    alert('请为左右表选择至少一个键列');
-    return;
+  try {
+    showLoading('正在合并数据...');
+    
+    // 使用 setTimeout 让 UI 更新
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    const result = joinRows({
+      headerA: state.tableA.header,
+      headerB: state.tableB.header,
+      rowsA: state.tableA.rows,
+      rowsB: state.tableB.rows,
+      keysA: state.join.keysA,
+      keysB: state.join.keysB,
+      type: state.join.type,
+      nullFill: state.join.nullFill,
+    });
+
+    state.result = result;
+    renderTable(result.header, result.rows);
+    renderStats(result.stats);
+    renderDataStats();
+    
+    // 显示成功消息
+    showNotification('合并完成！', 'success');
+    
+  } catch (error) {
+    console.error('合并失败:', error);
+    showNotification('合并失败: ' + error.message, 'error');
+  } finally {
+    hideLoading();
   }
-
-  if (state.join.keysA.length !== state.join.keysB.length) {
-    alert(`键列数量不匹配：左表 ${state.join.keysA.length} 个，右表 ${state.join.keysB.length} 个`);
-    return;
-  }
-
-  const result = joinRows({
-    headerA: state.tableA.header,
-    headerB: state.tableB.header,
-    rowsA: state.tableA.rows,
-    rowsB: state.tableB.rows,
-    keysA: state.join.keysA,
-    keysB: state.join.keysB,
-    type: state.join.type,
-    nullFill: state.join.nullFill,
-  });
-
-  state.result = result;
-  renderTable(result.header, result.rows);
-  renderStats(result.stats);
-  renderDataStats();
 });
 
 // 预览单表
@@ -697,9 +1120,16 @@ resetApp.addEventListener('click', () => {
 // 初始化
 setupDropzone(dropzoneA, fileA, 'A');
 setupDropzone(dropzoneB, fileB, 'B');
+setupKeyboardShortcuts();
 restoreSettings();
 loadHistory();
+renderTemplates();
 state.join.type = joinType.value;
 state.join.nullFill = nullFill.value;
 renderKeyChips();
 renderDataStats();
+
+// 显示欢迎消息
+setTimeout(() => {
+  showNotification('欢迎使用 Excel 表格合并工具！按 Ctrl+Enter 快速执行合并', 'info', 5000);
+}, 1000);

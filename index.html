@@ -13,7 +13,7 @@
   <header class="app-header">
     <h1>Excel/CSV 表格合并</h1>
     <div class="header-actions">
-      <button id="resetApp" class="btn ghost" title="重置页面">重置</button>
+      <button id="resetApp" class="btn ghost" title="重置页面">重置 <span class="shortcut-hint">Ctrl+R</span></button>
       <a class="btn link" href="https://github.com/" target="_blank" rel="noreferrer">GitHub</a>
     </div>
   </header>
@@ -84,8 +84,20 @@
         <input id="nullFill" type="text" placeholder="例如：NULL" value="" title="设置空值填充" aria-label="设置空值填充" />
       </div>
       <div class="row">
-        <button id="runJoin" class="btn primary">✨ 执行合并</button>
-        <button id="saveHistory" class="btn ghost">💾 保存到历史</button>
+        <button id="runJoin" class="btn primary">✨ 执行合并 <span class="shortcut-hint">Ctrl+Enter</span></button>
+        <button id="saveHistory" class="btn ghost">💾 保存到历史 <span class="shortcut-hint">Ctrl+S</span></button>
+        <button onclick="saveAsTemplate()" class="btn ghost">📋 保存为模板</button>
+        <button onclick="batchProcess()" class="btn ghost">📦 批量处理</button>
+        <div class="help-tooltip">
+          <span style="font-size: 18px;">❓</span>
+          <div class="tooltip-text">
+            <strong>Join 类型说明：</strong><br>
+            • INNER: 只保留两表都有的记录<br>
+            • LEFT: 保留左表全部 + 右表匹配<br>
+            • RIGHT: 保留右表全部 + 左表匹配<br>
+            • FULL: 保留两表所有记录
+          </div>
+        </div>
       </div>
     </section>
 
@@ -100,7 +112,7 @@
         <div id="stats" class="stats"></div>
         <div style="margin-left: auto; display: flex; gap: 8px;">
           <input id="searchTable" type="text" placeholder="🔍 搜索表格..." style="width: 200px;" title="搜索表格内容" aria-label="搜索表格内容" />
-          <button id="clearFilter" class="btn ghost small" title="清除搜索">清除</button>
+          <button id="clearFilter" class="btn ghost small" title="清除搜索">清除 <span class="shortcut-hint">Esc</span></button>
         </div>
       </div>
       <div class="table-wrap">
@@ -116,6 +128,11 @@
     <section class="card" id="historySection" style="display: none;">
       <h2>🕒 历史记录</h2>
       <div id="historyList" class="history-list"></div>
+    </section>
+
+    <section class="card" id="templatesSection" style="display: none;">
+      <h2>📋 保存的模板</h2>
+      <div id="templatesList" class="templates-list"></div>
     </section>
   </main>
 
