@@ -366,7 +366,12 @@ function showFileInfo(file, infoEl) {
 
 // 拖拽上传
 function setupDropzone(dropzone, fileInput, side) {
-  dropzone.addEventListener('click', () => fileInput.click());
+  // 只在点击非input区域时触发文件选择
+  dropzone.addEventListener('click', (e) => {
+    if (e.target !== fileInput) {
+      fileInput.click();
+    }
+  });
   
   dropzone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -382,7 +387,11 @@ function setupDropzone(dropzone, fileInput, side) {
     dropzone.classList.remove('dragover');
     const files = e.dataTransfer.files;
     if (files.length > 0) {
-      fileInput.files = files;
+      // 手动设置files到input
+      const dt = new DataTransfer();
+      dt.items.add(files[0]);
+      fileInput.files = dt.files;
+      
       const table = side === 'A' ? state.tableA : state.tableB;
       table.file = files[0];
       await parseFileToTable(files[0], side);
