@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>简单测试</title>
+<style>
+[hidden] { display: none !important; }
+.section { padding: 20px; margin: 10px; border: 2px solid #ccc; }
+.dual { background: #f5e6ff; }
+.single { background: #e0f2fe; }
+</style>
+</head>
+<body>
+<h1>UI切换测试</h1>
+<button onclick="test1()">测试1: 切换到单表</button>
+<button onclick="test2()">测试2: 切换到双表</button>
+<button onclick="check()">检查状态</button>
+
+<div id="dual" class="section dual">双表区域</div>
+<div id="single" class="section single" hidden>单表区域</div>
+
+<script>
+function test1() {
+  document.getElementById('dual').hidden = true;
+  document.getElementById('single').hidden = false;
+  console.log('切换到单表模式');
+  check();
+}
+
+function test2() {
+  document.getElementById('dual').hidden = false;
+  document.getElementById('single').hidden = true;
+  console.log('切换到双表模式');
+  check();
+}
+
+function check() {
+  console.log('双表 hidden:', document.getElementById('dual').hidden);
+  console.log('单表 hidden:', document.getElementById('single').hidden);
+}
+
+check();
+</script>
+</body>
+</html>

@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>UI分离测试</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
+    .section { 
+      margin: 20px 0; 
+      padding: 20px; 
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    .dual-only { background: #f5e6ff; border-left: 5px solid #9370db; }
+    .single-only { background: #e0f2fe; border-left: 5px solid #3b82f6; }
+    .shared { background: #d1fae5; border-left: 5px solid #059669; }
+    [hidden] { display: none !important; }
+    .controls { 
+      position: sticky; 
+      top: 0; 
+      background: white; 
+      padding: 15px; 
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      z-index: 100;
+      margin-bottom: 20px;
+    }
+    button {
+      padding: 12px 24px;
+      margin: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+    button:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
+    .mode-dual { background: #9370db; color: white; }
+    .mode-single { background: #3b82f6; color: white; }
+    .show-data { background: #059669; color: white; }
+    .hide-data { background: #dc2626; color: white; }
+    h2 { margin-top: 0; }
+    .status { 
+      padding: 10px; 
+      background: #fef3c7; 
+      border-radius: 5px;
+      margin-bottom: 15px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  
+  <div class="controls">
+    <h1>🧪 UI分离测试工具</h1>
+    <div class="status">
+      当前模式: <span id="currentMode">双表合并</span> | 
+      数据状态: <span id="dataStatus">无数据</span>
+    </div>
+    <div>
+      <button class="mode-dual" onclick="switchMode('dual')">🔗 切换到双表模式</button>
+      <button class="mode-single" onclick="switchMode('single')">📊 切换到单表模式</button>
+      <button class="show-data" onclick="setDataStatus(true)">✅ 模拟有数据</button>
+      <button class="hide-data" onclick="setDataStatus(false)">❌ 模拟无数据</button>
+    </div>
+  </div>
+
+  <!-- 双表合并区域 -->
+  <div id="dualSection" class="section dual-only">
+    <h2>🔗 双表合并模式区域</h2>
+    <p>✓ 上传左表文件 (A)</p>
+    <p>✓ 上传右表文件 (B)</p>
+    <p>✓ 选择合并键</p>
+    <p>✓ 选择 JOIN 类型</p>
+    <p>✓ 执行合并按钮</p>
+    <p><strong>应该在:</strong> 仅双表模式显示</p>
+  </div>
+
+  <!-- 单表处理区域 -->
+  <div id="singleSection" class="section single-only" hidden>
+    <h2>📊 单表处理模式区域</h2>
+    <p>✓ 上传单个文件</p>
+    <p>✓ 工作表管理</p>
+    <p>✓ JOIN 合并设置</p>
+    <p>✓ 合并/导出按钮</p>
+    <p><strong>应该在:</strong> 仅单表模式显示</p>
+  </div>
+
+  <!-- 共用区域 - 数据统计 -->
+  <div id="statsSection" class="section shared" hidden>
+    <h2>📊 数据统计（共用区域）</h2>
+    <p>✓ 表格统计信息</p>
+    <p>✓ 文件信息</p>
+    <p>✓ 行列数量</p>
+    <p><strong>应该在:</strong> 两种模式都可用，有数据时显示</p>
+  </div>
+
+  <!-- 共用区域 - 结果预览 -->
+  <div id="previewSection" class="section shared" hidden>
+    <h2>📋 结果预览与导出（共用区域）</h2>
+    <p>✓ 表格预览</p>
+    <p>✓ 搜索功能</p>
+    <p>✓ 导出 CSV/XLSX/JSON</p>
+    <p><strong>应该在:</strong> 两种模式都可用，有数据时显示</p>
+  </div>
+
+  <!-- 共用区域 - 数据操作 -->
+  <div id="dataOperations" class="section shared" hidden>
+    <h2>🛠️ 数据处理操作（共用区域）</h2>
+    <p>✓ 数据筛选</p>
+    <p>✓ 数据排序</p>
+    <p>✓ 数据清洗</p>
+    <p>✓ 数据透视</p>
+    <p><strong>应该在:</strong> 两种模式都可用，有数据时显示</p>
+  </div>
+
+  <script>
+    let currentMode = 'dual';
+    let hasData = false;
+
+    function updateUI() {
+      // 更新模式区域
+      document.getElementById('dualSection').hidden = currentMode !== 'dual';
+      document.getElementById('singleSection').hidden = currentMode !== 'single';
+      
+      // 更新共用区域（只在有数据时显示）
+      const sharedSections = ['statsSection', 'previewSection', 'dataOperations'];
+      sharedSections.forEach(id => {
+        document.getElementById(id).hidden = !hasData;
+      });
+      
+      // 更新状态显示
+      document.getElementById('currentMode').textContent = currentMode === 'dual' ? '双表合并' : '单表处理';
+      document.getElementById('dataStatus').textContent = hasData ? '有数据' : '无数据';
+      
+      // 打印日志
+      console.log(`模式: ${currentMode}, 数据: ${hasData}`);
+      console.log('双表区域 hidden:', document.getElementById('dualSection').hidden);
+      console.log('单表区域 hidden:', document.getElementById('singleSection').hidden);
+      console.log('统计区域 hidden:', document.getElementById('statsSection').hidden);
+      console.log('预览区域 hidden:', document.getElementById('previewSection').hidden);
+      console.log('操作区域 hidden:', document.getElementById('dataOperations').hidden);
+      console.log('---');
+    }
+
+    function switchMode(mode) {
+      currentMode = mode;
+      updateUI();
+    }
+
+    function setDataStatus(status) {
+      hasData = status;
+      updateUI();
+    }
+
+    // 初始化
+    updateUI();
+  </script>
+</body>
+</html>

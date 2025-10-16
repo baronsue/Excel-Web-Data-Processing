@@ -1,5 +1,22 @@
 /* global XLSX, Papa */
 
+// UI分离测试函数（在浏览器控制台调用）
+window.testUISeparation = function() {
+  console.log('=== UI 分离状态检查 ===');
+  console.log('当前模式:', state.mode);
+  console.log('Body类:', document.body.className);
+  console.log('\n模式区域:');
+  console.log('  双表区域 hidden:', document.getElementById('dualTableSection')?.hidden);
+  console.log('  单表区域 hidden:', document.getElementById('singleTableSection')?.hidden);
+  console.log('\n共用区域:');
+  console.log('  统计区域 hidden:', document.getElementById('statsSection')?.hidden);
+  console.log('  预览区域 hidden:', document.getElementById('previewSection')?.hidden);
+  console.log('  数据操作 hidden:', document.getElementById('dataOperations')?.hidden);
+  console.log('\n数据状态:');
+  console.log('  result.rows:', state.result.rows.length);
+  console.log('  processedData.rows:', state.processedData.rows.length);
+};
+
 // 状态存储
 const state = {
   tableA: { file: null, workbook: null, sheets: [], selectedSheet: null, header: [], rows: [] },
@@ -62,6 +79,7 @@ const historySection = $('#historySection');
 const historyList = $('#historyList');
 const searchTable = $('#searchTable');
 const clearSearchBtn = $('#clearSearchBtn');
+const fillValueInput = $('#fillValue');
 
 // 单表处理相关DOM
 const dualTableMode = $('#dualTableMode');
@@ -87,6 +105,32 @@ const undoOperation = $('#undoOperation');
 const redoOperation = $('#redoOperation');
 const operationHistory = $('#operationHistory');
 const clearFilterBtn = $('#clearFilterBtn');
+
+// DOM 辅助方法
+const toggleVisibility = (element, shouldShow) => {
+  if (!element) return;
+  element.hidden = !shouldShow;
+};
+
+const showElement = (element) => toggleVisibility(element, true);
+const hideElement = (element) => toggleVisibility(element, false);
+
+// 显示/隐藏共用区域
+const showSharedSections = () => {
+  const statsSection = $('#statsSection');
+  const previewSection = $('#previewSection');
+  
+  if (statsSection) statsSection.removeAttribute('hidden');
+  if (previewSection) previewSection.removeAttribute('hidden');
+};
+
+const hideSharedSections = () => {
+  const statsSection = $('#statsSection');
+  const previewSection = $('#previewSection');
+  
+  if (statsSection) statsSection.setAttribute('hidden', '');
+  if (previewSection) previewSection.setAttribute('hidden', '');
+};
 
 // 操作历史管理
 function saveOperationSnapshot(operationName) {
@@ -345,6 +389,11 @@ function renderTable(header, rows) {
   const bodyRows = rows.map((r) => '<tr>' + r.map((c) => `<td>${escapeHtml(c)}</td>`).join('') + '</tr>').join('');
   const tbody = `<tbody>${bodyRows}</tbody>`;
   preview.innerHTML = thead + tbody;
+  
+  // 有数据时显示共用区域
+  if (header.length > 0 && rows.length > 0) {
+    showSharedSections();
+  }
 }
 
 function escapeHtml(value) {
@@ -466,6 +515,14 @@ function renderDataStats() {
   
   dataStats.innerHTML = cards.join('');
   
+  // 如果有统计卡片，显示统计区域
+  const statsSection = $('#statsSection');
+  if (cards.length > 0 && statsSection) {
+    statsSection.removeAttribute('hidden');
+  } else if (statsSection) {
+    statsSection.setAttribute('hidden', '');
+  }
+  
   // 显示验证结果
   validateData();
   showValidationResults();
@@ -545,19 +602,35 @@ function createNotificationContainer() {
 function switchMode(mode) {
   state.mode = mode;
   
+  console.log('=== switchMode 被调用 ===');
+  console.log('切换到模式:', mode);
+  
+  // 更新body主题类
+  document.body.classList.remove('mode-dual', 'mode-single');
+  document.body.classList.add(`mode-${mode}`);
+  console.log('Body类已更新:', document.body.className);
+  
   // 更新按钮状态
   dualTableMode.classList.toggle('active', mode === 'dual');
   singleTableMode.classList.toggle('active', mode === 'single');
   
   // 显示/隐藏相应区域
-  dualTableSection.style.display = mode === 'dual' ? 'block' : 'none';
-  singleTableSection.style.display = mode === 'single' ? 'block' : 'none';
-  singleTableSheets.style.display = mode === 'single' && state.singleTable.sheets.length > 0 ? 'block' : 'none';
+  console.log('切换前 - 双表hidden:', dualTableSection?.hidden, '单表hidden:', singleTableSection?.hidden);
+  toggleVisibility(dualTableSection, mode === 'dual');
+  toggleVisibility(singleTableSection, mode === 'single');
+  toggleVisibility(singleTableSheets, mode === 'single' && state.singleTable.sheets.length > 0);
+  console.log('切换后 - 双表hidden:', dualTableSection?.hidden, '单表hidden:', singleTableSection?.hidden);
+  
+  // 切换模式时，如果没有数据则隐藏共用区域
+  const hasData = state.result.rows.length > 0 || state.processedData.rows.length > 0;
+  if (!hasData) {
+    hideSharedSections();
+  }
   
   // 数据操作模块在任何模式下都可能显示（当有数据时）
   // 但切换模式时先隐藏，等新数据生成时再显示
   if (state.processedData.rows.length === 0) {
-    dataOperations.style.display = 'none';
+    hideElement(dataOperations);
   }
   
   // 保存模式设置
@@ -878,11 +951,10 @@ function toggleSheet(sheetName) {
   renderDataStats(); // 更新统计信息
   
   // 如果选择了恰好2个工作表，显示键列选择区域并渲染键列chips
-  if (state.singleTable.selectedSheets.length === 2) {
-    singleTableKeys.style.display = 'block';
+  const shouldShowKeys = state.singleTable.selectedSheets.length === 2;
+  toggleVisibility(singleTableKeys, shouldShowKeys);
+  if (shouldShowKeys) {
     renderSingleTableKeyChips();
-  } else {
-    singleTableKeys.style.display = 'none';
   }
 }
 
@@ -1020,7 +1092,7 @@ function mergeAllSheetsData() {
     saveOperationSnapshot('初始数据');
     
     // 显示数据操作模块
-    dataOperations.style.display = 'block';
+    showElement(dataOperations);
     updateOperationSelects();
     
   } catch (error) {
@@ -1444,7 +1516,7 @@ function processSelectedSheetsData() {
     saveOperationSnapshot('初始数据');
     
     // 显示数据操作模块
-    dataOperations.style.display = 'block';
+    showElement(dataOperations);
     
   } catch (error) {
     console.error('处理失败:', error);
@@ -1781,7 +1853,7 @@ fileA.addEventListener('change', async (e) => {
   persistSettings();
   
   // 显示数据操作模块（即使没有合并数据）
-  dataOperations.style.display = 'block';
+  showElement(dataOperations);
 });
 
 fileB.addEventListener('change', async (e) => {
@@ -1795,7 +1867,7 @@ fileB.addEventListener('change', async (e) => {
   persistSettings();
   
   // 显示数据操作模块（即使没有合并数据）
-  dataOperations.style.display = 'block';
+  showElement(dataOperations);
 });
 
 sheetA.addEventListener('change', () => {
@@ -2023,11 +2095,11 @@ function saveToHistory() {
 
 function renderHistory() {
   if (state.history.length === 0) {
-    historySection.style.display = 'none';
+    hideElement(historySection);
     return;
   }
   
-  historySection.style.display = 'block';
+  showElement(historySection);
   historyList.innerHTML = state.history.map(record => `
     <div class="history-item">
       <div class="history-info">
@@ -2039,7 +2111,7 @@ function renderHistory() {
         </div>
       </div>
       <div class="history-actions">
-        <button class="btn small ghost" onclick="deleteHistory(${record.id})">删除</button>
+        <button type="button" class="btn small ghost" onclick="deleteHistory(${record.id})">删除</button>
       </div>
     </div>
   `).join('');
@@ -2071,10 +2143,12 @@ fileSingle.addEventListener('change', async (e) => {
   state.singleTable.file = e.target.files[0] || null;
   await parseSingleTable(state.singleTable.file);
   if (state.singleTable.sheets.length > 0) {
-    singleTableSheets.style.display = 'block';
+    showElement(singleTableSheets);
     // 显示数据操作模块
-    dataOperations.style.display = 'block';
+    showElement(dataOperations);
     updateOperationSelects();
+  } else {
+    hideElement(singleTableSheets);
   }
 });
 
@@ -2112,8 +2186,7 @@ redoOperation.addEventListener('click', redoLastOperation);
 
 // 清洗操作变化时显示/隐藏填充值输入
 $('#cleanupOperation').addEventListener('change', (e) => {
-  const fillValueInput = $('#fillValue');
-  fillValueInput.style.display = e.target.value === 'fill_empty' ? 'block' : 'none';
+  toggleVisibility(fillValueInput, e.target.value === 'fill_empty');
 });
 
 // 更新操作选择框
@@ -2155,6 +2228,9 @@ setupKeyboardShortcuts();
 restoreSettings();
 loadHistory();
 renderTemplates();
+
+// 初始化时隐藏共用区域（无数据时）
+hideSharedSections();
 
 // 恢复模式设置
 const savedMode = localStorage.getItem('excel-join-mode') || 'dual';
