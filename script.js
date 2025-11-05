@@ -1,5 +1,79 @@
 /* global XLSX, Papa */
 
+// 安全的 localStorage 辅助函数
+const SafeStorage = {
+  // 安全地从 localStorage 获取并解析 JSON
+  getJSON(key, defaultValue = null) {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return defaultValue;
+
+      const parsed = JSON.parse(item);
+
+      // 基本类型检查
+      if (parsed === null || parsed === undefined) {
+        return defaultValue;
+      }
+
+      return parsed;
+    } catch (error) {
+      console.warn(`Failed to parse localStorage item '${key}':`, error);
+      return defaultValue;
+    }
+  },
+
+  // 安全地获取字符串
+  getString(key, defaultValue = '') {
+    try {
+      const item = localStorage.getItem(key);
+      if (!item) return defaultValue;
+
+      // 确保返回的是字符串
+      return String(item);
+    } catch (error) {
+      console.warn(`Failed to get localStorage item '${key}':`, error);
+      return defaultValue;
+    }
+  },
+
+  // 安全地设置项目
+  setItem(key, value) {
+    try {
+      if (typeof value === 'object') {
+        localStorage.setItem(key, JSON.stringify(value));
+      } else {
+        localStorage.setItem(key, String(value));
+      }
+      return true;
+    } catch (error) {
+      console.error(`Failed to set localStorage item '${key}':`, error);
+      return false;
+    }
+  },
+
+  // 验证模板数据结构
+  validateTemplate(template) {
+    return template &&
+           typeof template === 'object' &&
+           typeof template.id === 'number' &&
+           typeof template.name === 'string' &&
+           typeof template.joinType === 'string' &&
+           Array.isArray(template.keysA) &&
+           Array.isArray(template.keysB);
+  },
+
+  // 验证历史记录数据结构
+  validateHistoryRecord(record) {
+    return record &&
+           typeof record === 'object' &&
+           typeof record.id === 'number' &&
+           typeof record.joinType === 'string' &&
+           typeof record.fileA === 'string' &&
+           typeof record.fileB === 'string' &&
+           typeof record.resultRows === 'number';
+  }
+};
+
 // UI分离测试函数（在浏览器控制台调用）
 window.testUISeparation = function() {
   console.log('=== UI 分离状态检查 ===');
@@ -634,7 +708,7 @@ function switchMode(mode) {
   }
   
   // 保存模式设置
-  localStorage.setItem('excel-join-mode', mode);
+  SafeStorage.setItem('excel-join-mode', mode);
 }
 
 // 键盘快捷键
@@ -684,10 +758,10 @@ function saveAsTemplate() {
     showNotification('请先选择键列', 'warning');
     return;
   }
-  
+
   const templateName = prompt('请输入模板名称：');
   if (!templateName) return;
-  
+
   const template = {
     id: Date.now(),
     name: templateName,
@@ -698,12 +772,12 @@ function saveAsTemplate() {
     nullFill: state.join.nullFill,
     hasHeader: hasHeader.checked,
   };
-  
-  const templates = JSON.parse(localStorage.getItem('join-templates') || '[]');
+
+  const templates = SafeStorage.getJSON('join-templates', []);
   templates.unshift(template);
   if (templates.length > 10) templates.splice(10);
-  
-  localStorage.setItem('join-templates', JSON.stringify(templates));
+
+  SafeStorage.setItem('join-templates', templates);
   showNotification(`模板 "${templateName}" 已保存`, 'success');
   renderTemplates();
 }
@@ -732,37 +806,67 @@ function loadTemplate(template) {
 }
 
 function renderTemplates() {
-  const templates = JSON.parse(localStorage.getItem('join-templates') || '[]');
+  const templates = SafeStorage.getJSON('join-templates', []);
   const container = document.getElementById('templatesList');
   if (!container) return;
-  
-  if (templates.length === 0) {
+
+  // 验证并过滤无效模板
+  const validTemplates = templates.filter(template => SafeStorage.validateTemplate(template));
+
+  if (validTemplates.length === 0) {
     container.innerHTML = '<p style="color: var(--text-muted); text-align: center; padding: 20px;">暂无保存的模板</p>';
     return;
   }
-  
-  container.innerHTML = templates.map(template => `
-    <div class="template-item">
-      <div class="template-info">
-        <div class="template-name">${template.name}</div>
-        <div class="template-meta">
-          ${template.joinType.toUpperCase()} JOIN | 
-          ${template.keysA.length} 键列 | 
-          ${template.timestamp}
-        </div>
-      </div>
-      <div class="template-actions">
-        <button class="btn small" onclick="loadTemplate(${JSON.stringify(template).replace(/"/g, '&quot;')})">应用</button>
-        <button class="btn small ghost" onclick="deleteTemplate(${template.id})">删除</button>
-      </div>
-    </div>
-  `).join('');
+
+  // 清空容器
+  container.innerHTML = '';
+
+  // 为每个模板创建元素
+  validTemplates.forEach(template => {
+    const templateItem = document.createElement('div');
+    templateItem.className = 'template-item';
+
+    const templateInfo = document.createElement('div');
+    templateInfo.className = 'template-info';
+
+    const templateName = document.createElement('div');
+    templateName.className = 'template-name';
+    templateName.textContent = escapeHtml(template.name);
+
+    const templateMeta = document.createElement('div');
+    templateMeta.className = 'template-meta';
+    templateMeta.textContent = `${escapeHtml(template.joinType).toUpperCase()} JOIN | ${template.keysA.length} 键列 | ${escapeHtml(template.timestamp)}`;
+
+    templateInfo.appendChild(templateName);
+    templateInfo.appendChild(templateMeta);
+
+    const templateActions = document.createElement('div');
+    templateActions.className = 'template-actions';
+
+    const applyBtn = document.createElement('button');
+    applyBtn.className = 'btn small';
+    applyBtn.textContent = '应用';
+    applyBtn.addEventListener('click', () => loadTemplate(template));
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'btn small ghost';
+    deleteBtn.textContent = '删除';
+    deleteBtn.addEventListener('click', () => deleteTemplate(template.id));
+
+    templateActions.appendChild(applyBtn);
+    templateActions.appendChild(deleteBtn);
+
+    templateItem.appendChild(templateInfo);
+    templateItem.appendChild(templateActions);
+
+    container.appendChild(templateItem);
+  });
 }
 
 function deleteTemplate(id) {
-  const templates = JSON.parse(localStorage.getItem('join-templates') || '[]');
+  const templates = SafeStorage.getJSON('join-templates', []);
   const filtered = templates.filter(t => t.id !== id);
-  localStorage.setItem('join-templates', JSON.stringify(filtered));
+  SafeStorage.setItem('join-templates', filtered);
   renderTemplates();
   showNotification('模板已删除', 'info');
 }
@@ -910,33 +1014,72 @@ function renderSheetsGrid() {
     sheetsGrid.innerHTML = '<p style="text-align: center; color: var(--text-muted); padding: 20px;">暂无工作表数据</p>';
     return;
   }
-  
-  sheetsGrid.innerHTML = state.singleTable.sheets.map(sheet => `
-    <div class="sheet-card ${state.singleTable.selectedSheets.includes(sheet.name) ? 'selected' : ''}">
-      <div class="sheet-header">
-        <span class="sheet-name">${sheet.name}</span>
-        <input type="checkbox" class="sheet-checkbox" 
-               ${state.singleTable.selectedSheets.includes(sheet.name) ? 'checked' : ''}
-               onchange="toggleSheet('${sheet.name}')" />
-      </div>
-      <div class="sheet-info">
-        <span>行数: ${sheet.rows.length}</span>
-        <span>列数: ${sheet.header.length}</span>
-      </div>
-      <div class="sheet-preview">
-        <table>
-          <thead>
-            <tr>${sheet.header.slice(0, 5).map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr>
-          </thead>
-          <tbody>
-            ${sheet.rows.slice(0, 3).map(row => 
-              `<tr>${row.slice(0, 5).map(cell => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`
-            ).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  `).join('');
+
+  // 清空容器
+  sheetsGrid.innerHTML = '';
+
+  // 为每个工作表创建元素
+  state.singleTable.sheets.forEach(sheet => {
+    const sheetCard = document.createElement('div');
+    sheetCard.className = 'sheet-card';
+    if (state.singleTable.selectedSheets.includes(sheet.name)) {
+      sheetCard.classList.add('selected');
+    }
+
+    const sheetHeader = document.createElement('div');
+    sheetHeader.className = 'sheet-header';
+
+    const sheetName = document.createElement('span');
+    sheetName.className = 'sheet-name';
+    sheetName.textContent = sheet.name;
+
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'sheet-checkbox';
+    checkbox.checked = state.singleTable.selectedSheets.includes(sheet.name);
+    checkbox.addEventListener('change', () => toggleSheet(sheet.name));
+
+    sheetHeader.appendChild(sheetName);
+    sheetHeader.appendChild(checkbox);
+
+    const sheetInfo = document.createElement('div');
+    sheetInfo.className = 'sheet-info';
+    sheetInfo.innerHTML = `<span>行数: ${sheet.rows.length}</span><span>列数: ${sheet.header.length}</span>`;
+
+    const sheetPreview = document.createElement('div');
+    sheetPreview.className = 'sheet-preview';
+
+    const table = document.createElement('table');
+    const thead = document.createElement('thead');
+    const theadRow = document.createElement('tr');
+    sheet.header.slice(0, 5).forEach(h => {
+      const th = document.createElement('th');
+      th.textContent = h;
+      theadRow.appendChild(th);
+    });
+    thead.appendChild(theadRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement('tbody');
+    sheet.rows.slice(0, 3).forEach(row => {
+      const tr = document.createElement('tr');
+      row.slice(0, 5).forEach(cell => {
+        const td = document.createElement('td');
+        td.textContent = cell;
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+
+    sheetPreview.appendChild(table);
+
+    sheetCard.appendChild(sheetHeader);
+    sheetCard.appendChild(sheetInfo);
+    sheetCard.appendChild(sheetPreview);
+
+    sheetsGrid.appendChild(sheetCard);
+  });
 }
 
 function toggleSheet(sheetName) {
@@ -1580,19 +1723,23 @@ function persistSettings() {
     },
     hasHeader: hasHeader.checked,
   };
-  localStorage.setItem('excel-join-settings', JSON.stringify(data));
+  SafeStorage.setItem('excel-join-settings', data);
 }
 
 function restoreSettings() {
-  try {
-    const saved = JSON.parse(localStorage.getItem('excel-join-settings'));
-    if (!saved) return;
-    joinType.value = saved.join?.type || 'inner';
-    nullFill.value = saved.join?.nullFill || '';
-    hasHeader.checked = saved.hasHeader ?? true;
-    state.join.keysA = saved.join?.keysA || [];
-    state.join.keysB = saved.join?.keysB || [];
-  } catch {}
+  const saved = SafeStorage.getJSON('excel-join-settings', null);
+  if (!saved) return;
+
+  if (saved.join && typeof saved.join === 'object') {
+    joinType.value = saved.join.type || 'inner';
+    nullFill.value = saved.join.nullFill || '';
+    state.join.keysA = Array.isArray(saved.join.keysA) ? saved.join.keysA : [];
+    state.join.keysB = Array.isArray(saved.join.keysB) ? saved.join.keysB : [];
+  }
+
+  if (typeof saved.hasHeader === 'boolean') {
+    hasHeader.checked = saved.hasHeader;
+  }
 }
 
 // 清理不匹配的键列
@@ -2061,11 +2208,10 @@ function downloadFile(content, filename, mime) {
 
 // 历史记录
 function loadHistory() {
-  try {
-    const saved = localStorage.getItem('excel-join-history');
-    state.history = saved ? JSON.parse(saved) : [];
-    renderHistory();
-  } catch {}
+  const history = SafeStorage.getJSON('excel-join-history', []);
+  // 验证并过滤无效记录
+  state.history = history.filter(record => SafeStorage.validateHistoryRecord(record));
+  renderHistory();
 }
 
 function saveToHistory() {
@@ -2073,7 +2219,7 @@ function saveToHistory() {
     alert('请先执行合并操作');
     return;
   }
-  
+
   const record = {
     id: Date.now(),
     timestamp: new Date().toLocaleString('zh-CN'),
@@ -2084,11 +2230,11 @@ function saveToHistory() {
     fileB: state.tableB.file?.name || '未知',
     resultRows: state.result.rows.length,
   };
-  
+
   state.history.unshift(record);
   if (state.history.length > 10) state.history = state.history.slice(0, 10);
-  
-  localStorage.setItem('excel-join-history', JSON.stringify(state.history));
+
+  SafeStorage.setItem('excel-join-history', state.history);
   renderHistory();
   alert('已保存到历史记录');
 }
@@ -2098,32 +2244,66 @@ function renderHistory() {
     hideElement(historySection);
     return;
   }
-  
+
   showElement(historySection);
-  historyList.innerHTML = state.history.map(record => `
-    <div class="history-item">
-      <div class="history-info">
-        <div class="history-title">${record.joinType.toUpperCase()} JOIN</div>
-        <div class="history-meta">
-          ${record.fileA} ⇔ ${record.fileB} | 
-          结果: ${record.resultRows} 行 | 
-          ${record.timestamp}
-        </div>
-      </div>
-      <div class="history-actions">
-        <button type="button" class="btn small ghost" onclick="deleteHistory(${record.id})">删除</button>
-      </div>
-    </div>
-  `).join('');
+
+  // 清空容器
+  historyList.innerHTML = '';
+
+  // 为每条历史记录创建元素
+  state.history.forEach(record => {
+    const historyItem = document.createElement('div');
+    historyItem.className = 'history-item';
+
+    const historyInfo = document.createElement('div');
+    historyInfo.className = 'history-info';
+
+    const historyTitle = document.createElement('div');
+    historyTitle.className = 'history-title';
+    historyTitle.textContent = `${escapeHtml(record.joinType).toUpperCase()} JOIN`;
+
+    const historyMeta = document.createElement('div');
+    historyMeta.className = 'history-meta';
+    historyMeta.textContent = `${escapeHtml(record.fileA)} ⇔ ${escapeHtml(record.fileB)} | 结果: ${record.resultRows} 行 | ${escapeHtml(record.timestamp)}`;
+
+    historyInfo.appendChild(historyTitle);
+    historyInfo.appendChild(historyMeta);
+
+    const historyActions = document.createElement('div');
+    historyActions.className = 'history-actions';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.type = 'button';
+    deleteBtn.className = 'btn small ghost';
+    deleteBtn.textContent = '删除';
+    deleteBtn.addEventListener('click', () => deleteHistory(record.id));
+
+    historyActions.appendChild(deleteBtn);
+
+    historyItem.appendChild(historyInfo);
+    historyItem.appendChild(historyActions);
+
+    historyList.appendChild(historyItem);
+  });
 }
 
-window.deleteHistory = function(id) {
+function deleteHistory(id) {
   state.history = state.history.filter(r => r.id !== id);
-  localStorage.setItem('excel-join-history', JSON.stringify(state.history));
+  SafeStorage.setItem('excel-join-history', state.history);
   renderHistory();
-};
+}
 
 saveHistory.addEventListener('click', saveToHistory);
+
+// 添加保存模板和批量处理按钮的事件监听器
+const saveAsTemplateBtn = $('#saveAsTemplate');
+const batchProcessBtn = $('#batchProcess');
+if (saveAsTemplateBtn) {
+  saveAsTemplateBtn.addEventListener('click', saveAsTemplate);
+}
+if (batchProcessBtn) {
+  batchProcessBtn.addEventListener('click', batchProcess);
+}
 
 resetApp.addEventListener('click', () => {
   if (confirm('确定要重置所有数据吗？')) {
@@ -2192,7 +2372,7 @@ $('#cleanupOperation').addEventListener('change', (e) => {
 // 更新操作选择框
 function updateOperationSelects() {
   let header = [];
-  
+
   // 优先使用处理后的数据
   if (state.processedData.header.length > 0) {
     header = state.processedData.header;
@@ -2206,15 +2386,36 @@ function updateOperationSelects() {
       });
     header = Array.from(allHeaders);
   }
-  
+
   if (header.length > 0) {
-    const options = header.map(h => `<option value="${h}">${h}</option>`).join('');
-    
-    $('#filterColumn').innerHTML = '<option value="">选择列...</option>' + options;
-    $('#sortColumn').innerHTML = '<option value="">选择列...</option>' + options;
-    $('#pivotRows').innerHTML = '<option value="">选择行字段...</option>' + options;
-    $('#pivotColumns').innerHTML = '<option value="">选择列字段...</option>' + options;
-    $('#pivotValues').innerHTML = '<option value="">选择值字段...</option>' + options;
+    // 安全地创建选项
+    const createOptions = (selectId, placeholder) => {
+      const select = $(selectId);
+      if (!select) return;
+
+      // 清空现有选项
+      select.innerHTML = '';
+
+      // 添加占位符选项
+      const placeholderOption = document.createElement('option');
+      placeholderOption.value = '';
+      placeholderOption.textContent = placeholder;
+      select.appendChild(placeholderOption);
+
+      // 添加列选项
+      header.forEach(h => {
+        const option = document.createElement('option');
+        option.value = h;
+        option.textContent = h;
+        select.appendChild(option);
+      });
+    };
+
+    createOptions('#filterColumn', '选择列...');
+    createOptions('#sortColumn', '选择列...');
+    createOptions('#pivotRows', '选择行字段...');
+    createOptions('#pivotColumns', '选择列字段...');
+    createOptions('#pivotValues', '选择值字段...');
   }
 }
 
@@ -2233,8 +2434,10 @@ renderTemplates();
 hideSharedSections();
 
 // 恢复模式设置
-const savedMode = localStorage.getItem('excel-join-mode') || 'dual';
-switchMode(savedMode);
+const savedMode = SafeStorage.getString('excel-join-mode', 'dual');
+// 验证模式值
+const validMode = (savedMode === 'dual' || savedMode === 'single') ? savedMode : 'dual';
+switchMode(validMode);
 
 state.join.type = joinType.value;
 state.join.nullFill = nullFill.value;

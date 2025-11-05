@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="本地浏览器中的 Excel / CSV 表格合并与数据处理工具，支持 JOIN、筛选、排序等多种操作。">
   <title>Excel 表格合并（类似数据库 JOIN）</title>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="stylesheet" href="styles.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -126,8 +127,8 @@
         <div class="action-buttons" role="group" aria-label="合并操作">
           <button id="runJoin" type="button" class="btn primary large">✨ 执行合并 <span class="shortcut-hint">Ctrl+Enter</span></button>
           <button id="saveHistory" type="button" class="btn outline">💾 保存到历史</button>
-          <button type="button" onclick="saveAsTemplate()" class="btn outline">📋 保存为模板</button>
-          <button type="button" onclick="batchProcess()" class="btn outline">📦 批量处理</button>
+          <button id="saveAsTemplate" type="button" class="btn outline">📋 保存为模板</button>
+          <button id="batchProcess" type="button" class="btn outline">📦 批量处理</button>
         </div>
       </article>
     </section>
@@ -342,8 +343,12 @@
     <span>本地浏览器完成解析与合并，不上传任何数据。</span>
   </footer>
 
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"
+          integrity="sha512-dfX5uYVXzyU8+KHqj8bjo7UkOdg18PaOtpa48djpNbZHwExddghZ+ZmzWT06R5v6NSk3ZUfsH6FNEDepLx9hPQ=="
+          crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+          integrity="sha512-r22gChDnGvBylk90+2e/ycr+eququ8+Par6G4NGr3OFxUo+qZ4rnXX9Ew+1PD6a81p0kJE9VVE0fI3LoN8Q0HA=="
+          crossorigin="anonymous"></script>
   <script src="script.js"></script>
 </body>
 </html>
