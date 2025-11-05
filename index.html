@@ -213,9 +213,9 @@
             <h3>数据筛选</h3>
           </div>
           <div class="operation-content">
-            <label class="label">筛选列</label>
+            <label class="label" for="filterColumn">筛选列</label>
             <select id="filterColumn" title="选择要筛选的列" aria-label="选择要筛选的列"></select>
-            <label class="label">筛选条件</label>
+            <label class="label" for="filterCondition">筛选条件</label>
             <select id="filterCondition" title="选择筛选条件" aria-label="选择筛选条件">
               <option value="equals">等于</option>
               <option value="contains">包含</option>
@@ -225,7 +225,7 @@
               <option value="less">小于</option>
               <option value="not_empty">非空</option>
             </select>
-            <label class="label">筛选值</label>
+            <label class="label" for="filterValue">筛选值</label>
             <input id="filterValue" type="text" placeholder="输入筛选值" />
             <div class="operation-actions">
               <button id="applyFilter" type="button" class="btn small primary">应用筛选</button>
@@ -240,9 +240,9 @@
             <h3>数据排序</h3>
           </div>
           <div class="operation-content">
-            <label class="label">排序列</label>
+            <label class="label" for="sortColumn">排序列</label>
             <select id="sortColumn" title="选择要排序的列" aria-label="选择要排序的列"></select>
-            <label class="label">排序方式</label>
+            <label class="label" for="sortOrder">排序方式</label>
             <select id="sortOrder" title="选择排序方式" aria-label="选择排序方式">
               <option value="asc">升序</option>
               <option value="desc">降序</option>
@@ -259,13 +259,14 @@
             <h3>数据清洗</h3>
           </div>
           <div class="operation-content">
-            <label class="label">清洗操作</label>
+            <label class="label" for="cleanupOperation">清洗操作</label>
             <select id="cleanupOperation" title="选择清洗操作类型" aria-label="选择清洗操作类型">
               <option value="remove_duplicates">去除重复行</option>
               <option value="remove_empty_rows">删除空行</option>
               <option value="trim_whitespace">去除首尾空格</option>
               <option value="fill_empty">填充空值</option>
             </select>
+            <label class="label" for="fillValue">填充值</label>
             <input id="fillValue" type="text" placeholder="填充值" hidden />
             <div class="operation-actions">
               <button id="applyCleanup" type="button" class="btn small primary">执行清洗</button>
@@ -279,11 +280,11 @@
             <h3>数据透视</h3>
           </div>
           <div class="operation-content">
-            <label class="label">行字段</label>
+            <label class="label" for="pivotRows">行字段</label>
             <select id="pivotRows" title="选择透视表行字段" aria-label="选择透视表行字段"></select>
-            <label class="label">列字段</label>
+            <label class="label" for="pivotColumns">列字段</label>
             <select id="pivotColumns" title="选择透视表列字段" aria-label="选择透视表列字段"></select>
-            <label class="label">值字段</label>
+            <label class="label" for="pivotValues">值字段</label>
             <select id="pivotValues" title="选择透视表值字段" aria-label="选择透视表值字段"></select>
             <div class="operation-actions">
               <button id="createPivot" type="button" class="btn small primary">创建透视表</button>
@@ -312,6 +313,7 @@
       <div class="preview-toolbar">
         <div id="stats" class="stats" aria-live="polite"></div>
         <div class="preview-actions">
+          <label for="searchTable" class="visually-hidden">搜索表格</label>
           <input id="searchTable" type="text" placeholder="🔍 搜索表格..." title="搜索表格内容" aria-label="搜索表格内容" />
           <button id="clearSearchBtn" type="button" class="btn small outline" title="清除搜索">清除</button>
         </div>
